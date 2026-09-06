@@ -46,6 +46,22 @@ JDK, so a machine that runs the build runs the editor.
 | `mvn clean install` | Full build, with the test suite |
 | `mvn test` | The test suite alone |
 
+## The branches
+
+The developer commits every change to `dev`, and that branch keeps each commit as it was made.
+
+`main` records the stable iterations. The developer squashes a finished iteration from `dev` into a
+single commit, so `main` gains one commit per version of the editor that runs.
+
+The developer publishes an iteration with four commands:
+
+```bash
+git switch main
+git merge --squash dev
+git commit
+git switch dev
+```
+
 ## The boundary
 
 Ludus owns the game: the model types, the rendering, the simulation and the curriculum. This project

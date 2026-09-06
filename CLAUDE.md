@@ -45,6 +45,16 @@ change, so it is the developer's call every time.
 
 ---
 
+## The branch a change lands on
+
+Every commit the agent makes goes on `dev`, and the README describes what each branch contains.
+
+The developer declares an iteration stable by squashing it onto `main`, and that judgement is theirs
+every time, exactly as the file format decision is. The agent commits to `main` when the developer
+asks for the squash by name.
+
+---
+
 ## Verification without a person watching
 
 A Swing component paints into a `BufferedImage` off screen, which is how a change to the drawing is
