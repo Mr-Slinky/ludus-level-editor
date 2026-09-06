@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
@@ -25,15 +26,23 @@ import javax.swing.JPanel;
  * <p>
  * A press selects the tile under the pointer, and a drag extends the selection to a rectangle of tiles.
  * {@link #getSelection()} returns that rectangle in tile coordinates, where {@code x} is the leftmost column,
- * {@code y} is the topmost row, and the width and height count tiles rather than pixels.
+ * {@code y} is the topmost row, and the width and height count tiles rather than pixels. A new swatch starts
+ * with an empty selection, and {@link #clearSelection()} returns it to that state.
  * <p>
- * <b>Selecting from a tileset</b>
+ * <b>Keeping one selection across several swatches</b>
+ * <p>
+ * {@link #clearSelection()} leaves listeners unnotified, so a container can clear its other swatches from
+ * inside a listener without those clears arriving back as further selections.
  * <pre>{@code
- * var swatch = new Swatch("terrain/tilesets/Tilemap_color1.png", 64);
- * swatch.addSelectionListener(selection -> preview.showImage(swatch.readSelectedImage()));
+ * var terrain = new Swatch("terrain/tilesets/Tilemap_color1.png", 64);
+ * var water   = new Swatch("terrain/tilesets/Water Background color.png", 64);
  *
- * // a drag from the first tile of the first row to the third tile of the second row leaves
- * // getSelection() equal to java.awt.Rectangle[x=0,y=0,width=3,height=2]
+ * terrain.addSelectionListener(selection -> water.clearSelection());
+ * water.addSelectionListener(selection -> terrain.clearSelection());
+ *
+ * // a drag across the first three tiles of the second row of the terrain swatch leaves
+ * // terrain.getSelection() equal to Optional[java.awt.Rectangle[x=0,y=1,width=3,height=1]]
+ * // water.getSelection()   equal to Optional.empty
  * }</pre>
  *
  * @author Kheagen Haskins
@@ -63,8 +72,8 @@ public class Swatch extends JPanel {
     private final int columns;
     private final int rows;
 
-    private Rectangle selection = new Rectangle(0, 0, 1, 1);
-    private Point     anchor    = new Point(0, 0);
+    private Rectangle selection;
+    private Point     anchor = new Point(0, 0);
 
     // ========================================================================================== \\
     //                                       Constructor(s)                                       \\
@@ -154,12 +163,21 @@ public class Swatch extends JPanel {
 
     /**
      * Returns the selected tiles in tile coordinates, where {@code x} is the leftmost column, {@code y} is the
-     * topmost row, and the width and height count tiles. A fresh swatch returns the single tile at the origin.
+     * topmost row, and the width and height count tiles.
      *
-     * @return a copy of the current selection, which spans at least one tile
+     * @return a copy of the current selection, spanning at least one tile, and empty while nothing is selected
      */
-    public Rectangle getSelection() {
-        return new Rectangle(selection);
+    public Optional<Rectangle> getSelection() {
+        return Optional.ofNullable(selection).map(Rectangle::new);
+    }
+
+    /**
+     * Reports whether any tile is selected.
+     *
+     * @return {@code true} while at least one tile is selected
+     */
+    public boolean hasSelection() {
+        return selection != null;
     }
 
     // ========================================================================================== \\
@@ -178,11 +196,24 @@ public class Swatch extends JPanel {
      * Returns the region of the source image the selection covers, at the image's own resolution. A selection of
      * three columns by two rows over 64 pixel tiles returns a 192 by 128 image.
      *
-     * @return a view onto the source image, sharing its pixels
+     * @return a view onto the source image, sharing its pixels, and empty while nothing is selected
      */
-    public BufferedImage readSelectedImage() {
-        var bounds = resolveSelectionBounds();
-        return image.getSubimage(bounds.x, bounds.y, bounds.width, bounds.height);
+    public Optional<BufferedImage> readSelectedImage() {
+        return resolveSelectionBounds().map(bounds -> image.getSubimage(bounds.x, bounds.y, bounds.width, bounds.height));
+    }
+
+    /**
+     * Empties the selection and repaints, leaving every listener unnotified. A container holding several swatches
+     * calls this on the others when one of them reports a selection, so that one tile stays selected across the
+     * whole set.
+     */
+    public void clearSelection() {
+        if (selection == null) {
+            return;
+        }
+
+        selection = null;
+        repaint();
     }
 
     @Override
@@ -301,21 +332,30 @@ public class Swatch extends JPanel {
 
     private void paintSelection(Graphics2D canvas) {
         var bounds = resolveSelectionBounds();
+        if (bounds.isEmpty()) {
+            return;
+        }
+
+        var region = bounds.get();
 
         canvas.setColor(SELECTION_FILL);
-        canvas.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        canvas.fillRect(region.x, region.y, region.width, region.height);
 
         canvas.setColor(SELECTION_OUTLINE);
-        canvas.drawRect(bounds.x, bounds.y, bounds.width - 1, bounds.height - 1);
+        canvas.drawRect(region.x, region.y, region.width - 1, region.height - 1);
     }
 
-    private Rectangle resolveSelectionBounds() {
-        return new Rectangle(
-                selection.x      * tileWidth,
-                selection.y      * tileHeight,
-                selection.width  * tileWidth,
-                selection.height * tileHeight
-        );
+    /**
+     * Converts the selection from tile coordinates to the pixel rectangle it covers in the source image.
+     */
+    private Optional<Rectangle> resolveSelectionBounds() {
+        return Optional.ofNullable(selection)
+                       .map(tiles -> new Rectangle(
+                               tiles.x      * tileWidth,
+                               tiles.y      * tileHeight,
+                               tiles.width  * tileWidth,
+                               tiles.height * tileHeight
+                       ));
     }
 
     // ========================================================================================== \\
