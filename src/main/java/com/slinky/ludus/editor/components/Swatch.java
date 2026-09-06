@@ -24,10 +24,9 @@ import javax.swing.JPanel;
  * cut into 64 pixel tiles, yields one row (64 image height / 64 tile height = 1 row) and three columns
  * (192 image width / 64 tile width = 3 columns).
  * <p>
- * A press selects the tile under the pointer, and a drag extends the selection to a rectangle of tiles.
- * {@link #getSelection()} returns that rectangle in tile coordinates, where {@code x} is the leftmost column,
- * {@code y} is the topmost row, and the width and height count tiles rather than pixels. A new swatch starts
- * with an empty selection, and {@link #clearSelection()} returns it to that state.
+ * A press selects the one tile under the pointer. {@link #getSelection()} returns that tile in tile
+ * coordinates, where {@code x} is the column and {@code y} is the row. A new swatch starts with an empty
+ * selection, and {@link #clearSelection()} returns it to that state.
  * <p>
  * <b>Keeping one selection across several swatches</b>
  * <p>
@@ -40,8 +39,8 @@ import javax.swing.JPanel;
  * terrain.addSelectionListener(selection -> water.clearSelection());
  * water.addSelectionListener(selection -> terrain.clearSelection());
  *
- * // a drag across the first three tiles of the second row of the terrain swatch leaves
- * // terrain.getSelection() equal to Optional[java.awt.Rectangle[x=0,y=1,width=3,height=1]]
+ * // a press on the first tile of the second row of the terrain swatch leaves
+ * // terrain.getSelection() equal to Optional[java.awt.Point[x=0,y=1]]
  * // water.getSelection()   equal to Optional.empty
  * }</pre>
  *
@@ -72,8 +71,7 @@ public class Swatch extends JPanel {
     private final int columns;
     private final int rows;
 
-    private Rectangle selection;
-    private Point     anchor = new Point(0, 0);
+    private Point selection;
 
     // ========================================================================================== \\
     //                                       Constructor(s)                                       \\
@@ -162,19 +160,18 @@ public class Swatch extends JPanel {
     }
 
     /**
-     * Returns the selected tiles in tile coordinates, where {@code x} is the leftmost column, {@code y} is the
-     * topmost row, and the width and height count tiles.
+     * Returns the selected tile in tile coordinates, where {@code x} is the column and {@code y} is the row.
      *
-     * @return a copy of the current selection, spanning at least one tile, and empty while nothing is selected
+     * @return a copy of the selected tile, and empty while nothing is selected
      */
-    public Optional<Rectangle> getSelection() {
-        return Optional.ofNullable(selection).map(Rectangle::new);
+    public Optional<Point> getSelection() {
+        return Optional.ofNullable(selection).map(Point::new);
     }
 
     /**
-     * Reports whether any tile is selected.
+     * Reports whether a tile is selected.
      *
-     * @return {@code true} while at least one tile is selected
+     * @return {@code true} while one tile is selected
      */
     public boolean hasSelection() {
         return selection != null;
@@ -193,8 +190,8 @@ public class Swatch extends JPanel {
     }
 
     /**
-     * Returns the region of the source image the selection covers, at the image's own resolution. A selection of
-     * three columns by two rows over 64 pixel tiles returns a 192 by 128 image.
+     * Returns the region of the source image the selected tile covers, at the image's own resolution. A swatch
+     * of 64 pixel tiles returns a 64 by 64 image.
      *
      * @return a view onto the source image, sharing its pixels, and empty while nothing is selected
      */
@@ -254,26 +251,17 @@ public class Swatch extends JPanel {
     }
 
     private void installMouseHandling() {
-        var mouse = new MouseAdapter() {
+        addMouseListener(new MouseAdapter() {
 
             @Override
             public void mousePressed(MouseEvent e) {
-                anchor = findTile(e.getPoint());
-                updateSelection(new Rectangle(anchor.x, anchor.y, 1, 1));
+                updateSelection(findTile(e.getPoint()));
             }
-
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                updateSelection(buildSelection(anchor, findTile(e.getPoint())));
-            }
-        };
-
-        addMouseListener(mouse);
-        addMouseMotionListener(mouse);
+        });
     }
 
     /**
-     * Converts a point in component pixels to the tile containing it, clamped to the grid so that a drag beyond
+     * Converts a point in component pixels to the tile containing it, clamped to the grid so that a press beyond
      * the edge selects the outermost row or column.
      */
     private Point findTile(Point point) {
@@ -286,27 +274,18 @@ public class Swatch extends JPanel {
         return Math.max(0, Math.min(value, maximum));
     }
 
-    private Rectangle buildSelection(Point from, Point to) {
-        return new Rectangle(
-                Math.min(from.x, to.x),
-                Math.min(from.y, to.y),
-                Math.abs(from.x - to.x) + 1,
-                Math.abs(from.y - to.y) + 1
-        );
-    }
-
-    private void updateSelection(Rectangle tiles) {
-        if (tiles.equals(selection)) {
+    private void updateSelection(Point tile) {
+        if (tile.equals(selection)) {
             return;
         }
 
-        selection = tiles;
+        selection = tile;
         repaint();
         fireSelectionChanged();
     }
 
     private void fireSelectionChanged() {
-        var current = new Rectangle(selection);
+        var current = new Point(selection);
         for (var listener : listeners) {
             listener.handleSelection(current);
         }
@@ -346,15 +325,15 @@ public class Swatch extends JPanel {
     }
 
     /**
-     * Converts the selection from tile coordinates to the pixel rectangle it covers in the source image.
+     * Converts the selected tile from tile coordinates to the pixel rectangle it covers in the source image.
      */
     private Optional<Rectangle> resolveSelectionBounds() {
         return Optional.ofNullable(selection)
-                       .map(tiles -> new Rectangle(
-                               tiles.x      * tileWidth,
-                               tiles.y      * tileHeight,
-                               tiles.width  * tileWidth,
-                               tiles.height * tileHeight
+                       .map(tile -> new Rectangle(
+                               tile.x * tileWidth,
+                               tile.y * tileHeight,
+                               tileWidth,
+                               tileHeight
                        ));
     }
 
@@ -362,17 +341,17 @@ public class Swatch extends JPanel {
     //                                       Helper Classes                                       \\
     // ========================================================================================== \\
     /**
-     * Receives the tiles a {@link Swatch} selects, so a component beside the swatch can follow the selection.
+     * Receives the tile a {@link Swatch} selects, so a component beside the swatch can follow the selection.
      */
     @FunctionalInterface
     public interface SelectionListener {
 
         /**
-         * Accepts the tiles now selected.
+         * Accepts the tile now selected.
          *
-         * @param selection the selected tiles in tile coordinates, spanning at least one tile
+         * @param selection the selected tile in tile coordinates, with {@code x} the column and {@code y} the row
          */
-        void handleSelection(Rectangle selection);
+        void handleSelection(Point selection);
     }
 
 }

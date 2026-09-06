@@ -5,7 +5,7 @@ import com.slinky.ludus.editor.components.Swatch;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
-import java.awt.Rectangle;
+import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
@@ -100,16 +100,16 @@ public class SwatchPanel extends JPanel {
     }
 
     /**
-     * Returns the tiles selected anywhere in the deck, in the tile coordinates of the swatch holding them.
+     * Returns the tile selected anywhere in the deck, in the tile coordinates of the swatch it belongs to.
      *
-     * @return the selection, and empty while no swatch in the deck has one
+     * @return the selected tile, and empty while no swatch in the deck has one
      */
-    public Optional<Rectangle> getSelection() {
+    public Optional<Point> getSelection() {
         return findSelectedSwatch().flatMap(Swatch::getSelection);
     }
 
     /**
-     * Reports whether any swatch in the deck has a selection.
+     * Reports whether any swatch in the deck has a selected tile.
      *
      * @return {@code true} while one tileset in the deck has at least one tile selected
      */
@@ -167,7 +167,7 @@ public class SwatchPanel extends JPanel {
     }
 
     /**
-     * Registers a listener that receives the selection every time a press or a drag changes it.
+     * Registers a listener that receives the selected tile every time a press changes it.
      *
      * @param listener the listener to notify
      */
@@ -190,7 +190,7 @@ public class SwatchPanel extends JPanel {
      * Clears every swatch other than the one just pressed, so one tile stays selected across the deck, then
      * passes the selection on. The clears stay silent, which keeps them out of this method.
      */
-    private void handleSwatchSelection(Swatch source, Rectangle selection) {
+    private void handleSwatchSelection(Swatch source, Point selection) {
         for (var swatch : swatches) {
             if (swatch != source) {
                 swatch.clearSelection();

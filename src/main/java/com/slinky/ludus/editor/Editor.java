@@ -1,7 +1,5 @@
 package com.slinky.ludus.editor;
 
-import com.slinky.ludus.editor.panels.SwatchPanel;
-
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
@@ -17,7 +15,6 @@ public class Editor extends JFrame {
     // ========================================================================================== \\
     //                                           Static                                           \\
     // ========================================================================================== \\
-    private static final int TILE_SIZE = 64;
 
     private static final String[] TILESETS = {
             "terrain/tilesets/Tilemap_color1.png",
@@ -42,7 +39,7 @@ public class Editor extends JFrame {
         super("Ludus Level Editor");
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        add(new SwatchPanel(TILE_SIZE, TILESETS));
+        add(new RootPanel(TILESETS));
         pack();
         setLocationRelativeTo(null);
     }
