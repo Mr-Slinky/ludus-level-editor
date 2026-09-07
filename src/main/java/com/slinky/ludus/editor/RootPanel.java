@@ -2,17 +2,20 @@ package com.slinky.ludus.editor;
 
 import com.slinky.ludus.editor.components.LevelCanvas;
 import com.slinky.ludus.editor.panels.SwatchPanel;
+import com.slinky.ludus.editor.panels.TitleBar;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.GridBagLayout;
 
 import javax.swing.BorderFactory;
 import javax.swing.JPanel;
 
 /**
- * The window's content, dividing it between a {@link SwatchPanel} down the left edge and a {@link LevelCanvas}
- * filling the rest. This panel owns the cell size and the grid maximum, and hands the same cell size to both, so
- * a tile occupies the same number of pixels wherever it appears.
+ * The window's content, with a {@link TitleBar} across the top and the space below it divided between a
+ * {@link SwatchPanel} down the left edge and a {@link LevelCanvas} filling the rest. This panel owns the cell
+ * size and the grid maximum, and hands the same cell size to both, so a tile occupies the same number of pixels
+ * wherever it appears.
  * <p>
  * A press on a swatch arms that tile on the canvas, and a press on the canvas stamps it. The canvas holds no
  * reference to the swatch panel, since this panel listens to one and arms the other.
@@ -22,16 +25,18 @@ import javax.swing.JPanel;
  * <p>
  * A margin of {@value #PADDING} pixels surrounds both sides, and the same distance separates one from the other,
  * so the two of them contribute {@code 3 * PADDING} pixels to the window's width and {@code 2 * PADDING} to its
- * height.
+ * height. The title bar spans the full width above that margin, and a single pixel line runs round the whole
+ * panel, which is the edge the window presents once a frame turns its own decoration off.
  * <p>
  * <b>Opening the editor over a deck of tilesets</b>
  * <pre>{@code
  * var root = new RootPanel("terrain/tilesets/Tilemap_color1.png");
  *
+ * frame.setUndecorated(true);
  * frame.setContentPane(root);
  * frame.pack();
  *
- * // the canvas takes 15 * 64 by 15 * 64 pixels, so the content measures 984 pixels tall
+ * // the canvas takes 15 * 64 by 15 * 64 pixels, so the window opens 1019 pixels tall
  * }</pre>
  *
  * @author Kheagen Haskins
@@ -52,9 +57,12 @@ public class RootPanel extends JPanel {
     /** The distance in pixels between the window edge and either side, and between the two sides. */
     public static final int PADDING = 12;
 
+    private static final Color WINDOW_EDGE = new Color(0, 0, 0, 40);
+
     // ========================================================================================== \\
     //                                           Fields                                           \\
     // ========================================================================================== \\
+    private final TitleBar    titleBar = new TitleBar();
     private final SwatchPanel swatchPanel;
     private final LevelCanvas levelCanvas;
 
@@ -74,15 +82,19 @@ public class RootPanel extends JPanel {
 
         armCanvasOnSelection();
 
-        setLayout(new BorderLayout(PADDING, 0));
-        setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING));
-        add(buildCentredArea(swatchPanel), BorderLayout.WEST);
-        add(buildCentredArea(levelCanvas), BorderLayout.CENTER);
+        setLayout(new BorderLayout());
+        setBorder(BorderFactory.createLineBorder(WINDOW_EDGE));
+        add(titleBar, BorderLayout.NORTH);
+        add(buildBody(), BorderLayout.CENTER);
     }
 
     // ========================================================================================== \\
     //                                          Getters                                           \\
     // ========================================================================================== \\
+    public TitleBar getTitleBar() {
+        return titleBar;
+    }
+
     public SwatchPanel getSwatchPanel() {
         return swatchPanel;
     }
@@ -100,6 +112,19 @@ public class RootPanel extends JPanel {
      */
     private void armCanvasOnSelection() {
         swatchPanel.addSelectionListener(selection -> swatchPanel.readSelectedImage().ifPresent(levelCanvas::setArmedTile));
+    }
+
+    /**
+     * Lays the deck and the canvas out side by side inside the margin, which keeps the margin clear of the title
+     * bar above.
+     */
+    private JPanel buildBody() {
+        var body = new JPanel(new BorderLayout(PADDING, 0));
+        body.setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING));
+        body.add(buildCentredArea(swatchPanel), BorderLayout.WEST);
+        body.add(buildCentredArea(levelCanvas), BorderLayout.CENTER);
+
+        return body;
     }
 
     /**
