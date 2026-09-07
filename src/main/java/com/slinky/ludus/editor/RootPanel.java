@@ -38,13 +38,13 @@ import javax.swing.JPanel;
  * <p>
  * <b>Opening the editor over a deck of tilesets</b>
  * <pre>{@code
- * var root = new RootPanel("terrain/tilesets/Tilemap_color1.png");
+ * var root = new RootPanel(tilesetPaths);
  *
  * frame.setUndecorated(true);
  * frame.setContentPane(root);
  * frame.pack();
  *
- * // the canvas takes 15 * 64 by 15 * 64 pixels, and the two bars add their own height above and below
+ * // the canvas takes 10 * 64 by 10 * 64 pixels, and the two bars add their own height above and below
  * }</pre>
  *
  * @author Kheagen Haskins

@@ -33,8 +33,8 @@ import javax.swing.JPanel;
  * {@link #clearSelection()} leaves listeners unnotified, so a container can clear its other swatches from
  * inside a listener without those clears arriving back as further selections.
  * <pre>{@code
- * var terrain = new Swatch("terrain/tilesets/Tilemap_color1.png", 64);
- * var water   = new Swatch("terrain/tilesets/Water Background color.png", 64);
+ * var terrain = new Swatch(terrainPath, 64);
+ * var water   = new Swatch(waterPath, 64);
  *
  * terrain.addSelectionListener(selection -> water.clearSelection());
  * water.addSelectionListener(selection -> terrain.clearSelection());

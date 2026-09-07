@@ -20,11 +20,11 @@ public class Editor extends JFrame {
     // ========================================================================================== \\
 
     private static final String[] TILESETS = {
-            "terrain/tilesets/Tilemap_color1.png",
-            "terrain/tilesets/Tilemap_color2.png",
-            "terrain/tilesets/Tilemap_color3.png",
-            "terrain/tilesets/Tilemap_color4.png",
-            "terrain/tilesets/Tilemap_color5.png"
+            "terrain/tilesets/tilemap_color1.png",
+            "terrain/tilesets/tilemap_color2.png",
+            "terrain/tilesets/tilemap_color3.png",
+            "terrain/tilesets/tilemap_color4.png",
+            "terrain/tilesets/tilemap_color5.png"
     };
 
     static void main() {

@@ -26,14 +26,12 @@ import javax.swing.SwingConstants;
  * <p>
  * <b>Building a deck from the terrain tilesets</b>
  * <pre>{@code
- * var deck = new SwatchPanel(64,
- *         "terrain/tilesets/Tilemap_color1.png",
- *         "terrain/tilesets/Tilemap_color2.png");
+ * var deck = new SwatchPanel(64, firstTilesetPath, secondTilesetPath);
  *
  * deck.addSelectionListener(selection -> System.out.println(selection));
  * deck.showNext();
  *
- * // the caption now reads "Tilemap_color2 (2 of 2)"
+ * // the caption states the second tileset's file name, followed by "(2 of 2)"
  * // deck.getSelection() stays Optional.empty until a press lands on a swatch
  * }</pre>
  *
@@ -225,8 +223,8 @@ public class SwatchPanel extends JPanel {
     }
 
     /**
-     * Reads the file name out of a resource path, so {@code terrain/tilesets/Tilemap_color1.png} captions as
-     * {@code Tilemap_color1}.
+     * Reads the file name out of a resource path and drops the extension, so a path ending {@code /name.png}
+     * captions as {@code name}.
      */
     private String deriveName(String path) {
         var start = path.lastIndexOf('/') + 1;

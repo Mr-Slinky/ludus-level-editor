@@ -77,7 +77,7 @@ public class LevelCanvas extends JPanel {
     //                                           Static                                           \\
     // ========================================================================================== \\
     /** The asset the water colour is read from, below {@value Swatch#ROOT_DIR}. */
-    public static final String WATER_ASSET = "terrain/tilesets/Water Background color.png";
+    public static final String WATER_ASSET = "terrain/tilesets/water-background-color.png";
 
     /** The number of grids a canvas stacks, indexed 0 at the bottom to {@code MAX_LAYERS - 1} at the top. */
     public static final int MAX_LAYERS = 6;
