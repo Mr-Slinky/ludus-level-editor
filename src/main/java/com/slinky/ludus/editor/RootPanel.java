@@ -6,6 +6,7 @@ import com.slinky.ludus.editor.panels.SwatchPanel;
 import java.awt.BorderLayout;
 import java.awt.GridBagLayout;
 
+import javax.swing.BorderFactory;
 import javax.swing.JPanel;
 
 /**
@@ -16,8 +17,12 @@ import javax.swing.JPanel;
  * A press on a swatch arms that tile on the canvas, and a press on the canvas stamps it. The canvas holds no
  * reference to the swatch panel, since this panel listens to one and arms the other.
  * <p>
- * Each side sits in a {@link GridBagLayout} holding it as its only child, which lays it out at its preferred size
- * and centres it, so growing the window leaves both components centred in the space they were given.
+ * Each side occupies a {@link GridBagLayout} containing it as its only child, which lays it out at its preferred
+ * size and centres it, so growing the window leaves both components centred in the space they were given.
+ * <p>
+ * A margin of {@value #PADDING} pixels surrounds both sides, and the same distance separates one from the other,
+ * so the two of them contribute {@code 3 * PADDING} pixels to the window's width and {@code 2 * PADDING} to its
+ * height.
  * <p>
  * <b>Opening the editor over a deck of tilesets</b>
  * <pre>{@code
@@ -26,13 +31,13 @@ import javax.swing.JPanel;
  * frame.setContentPane(root);
  * frame.pack();
  *
- * // the canvas takes 15 * 64 by 15 * 64 pixels, so the window opens 960 pixels tall
+ * // the canvas takes 15 * 64 by 15 * 64 pixels, so the content measures 984 pixels tall
  * }</pre>
  *
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-06
+ *          Last modified: 2026-09-07
  * @since 1.0.0
  */
 public class RootPanel extends JPanel {
@@ -43,6 +48,9 @@ public class RootPanel extends JPanel {
     public static final int CELL_SIZE   = 64;
     public static final int MAX_COLUMNS = 15;
     public static final int MAX_ROWS    = 15;
+
+    /** The distance in pixels between the window edge and either side, and between the two sides. */
+    public static final int PADDING = 12;
 
     // ========================================================================================== \\
     //                                           Fields                                           \\
@@ -66,7 +74,8 @@ public class RootPanel extends JPanel {
 
         armCanvasOnSelection();
 
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(PADDING, 0));
+        setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING));
         add(buildCentredArea(swatchPanel), BorderLayout.WEST);
         add(buildCentredArea(levelCanvas), BorderLayout.CENTER);
     }
