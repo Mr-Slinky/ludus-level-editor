@@ -9,18 +9,31 @@ import java.awt.Point;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 import javax.swing.JPanel;
 
 /**
- * A grid of cells the same size as the tiles in a {@link Swatch}, onto which a caller stamps tiles. The panel
- * takes the pixel size of the largest grid it will ever hold, so a smaller grid centres inside a panel whose
- * dimensions stay put.
+ * A stack of {@value #MAX_LAYERS} grids of cells the same size as the tiles in a {@link Swatch}, onto which a
+ * caller stamps tiles. Every layer shares one row and column count, and the panel takes exactly the pixel size
+ * of that grid, as both its preferred and its minimum size. A layout with room to spare therefore centres the
+ * canvas, and a layout with less room than the grid needs clips it, which keeps the grid on screen at whatever
+ * size the window happens to be.
  * <p>
- * Every cell starts as water, drawn in the colour read from {@value #WATER_ASSET}, and a stamped tile covers
- * that colour. A level therefore begins as an expanse of water that a user builds land into, and
+ * The layers paint in index order, so layer 0 goes down first and each layer after it draws over the one below.
+ * A tile's transparent pixels let the layers beneath show through, which is what puts the overhanging face of a
+ * cliff over the ground behind it. Every layer stays fully visible at every moment, so a level appears while a
+ * user edits it exactly as it will appear once it is finished.
+ * <p>
+ * One layer at a time takes a stamp. {@link #setActiveLayer(int)} chooses it, {@link #getActiveLayer()} reports
+ * it, and {@link #getGrid()} returns its tiles. A press writes to that layer alone and leaves the rest as they
+ * stand.
+ * <p>
+ * Every cell starts as water, drawn in the colour read from {@value #WATER_ASSET} beneath layer 0, and a stamped
+ * tile covers that colour. A level therefore begins as an expanse of water that a user builds land into, and
  * {@link #getWaterColour()} returns the colour a caller writing the level out needs for the cells nothing was
  * stamped onto.
  * <p>
@@ -29,10 +42,12 @@ import javax.swing.JPanel;
  * While a tile is armed, the cell under the pointer shows that tile at reduced opacity inside an outline, so the
  * destination of a press is visible before the press.
  * <p>
- * {@link TileGrid} holds the placed tiles and accepts a new row and column count only while it holds none of
- * them, which is what keeps a resize from stranding tiles outside the grid.
+ * {@link TileGrid} stores the placed tiles of one layer. A resize goes through {@link #resizeGrid(int, int)},
+ * which sets every layer at once. Growing keeps every tile where it is, and shrinking keeps the tiles that stay
+ * inside the new bounds. A shrink that would drop a tile is refused, so a resize leaves no tile stranded outside
+ * the grid, and {@link #canResizeTo(int, int)} answers in advance which of those a given size would be.
  * <p>
- * <b>Stamping a tile from a swatch</b>
+ * <b>Stamping a cliff face over the ground behind it</b>
  * <pre>{@code
  * var canvas = new LevelCanvas(64, 15, 15);
  *
@@ -41,8 +56,13 @@ import javax.swing.JPanel;
  *
  * swatch.readSelectedImage().ifPresent(canvas::setArmedTile);
  *
- * // a press at (300, 140) writes the armed tile into column 4, row 2
+ * // a press at (300, 140) writes the armed tile into column 4, row 2 of layer 0
  * canvas.getGrid().readTile(4, 2);    // the armed image
+ *
+ * canvas.setActiveLayer(1);
+ *
+ * // a press on the same cell now writes to layer 1, and layer 0 keeps its tile
+ * canvas.getLayer(0).readTile(4, 2);  // still the first image
  * }</pre>
  *
  * @author Kheagen Haskins
@@ -58,6 +78,9 @@ public class LevelCanvas extends JPanel {
     // ========================================================================================== \\
     /** The asset the water colour is read from, below {@value Swatch#ROOT_DIR}. */
     public static final String WATER_ASSET = "terrain/tilesets/Water Background color.png";
+
+    /** The number of grids a canvas stacks, indexed 0 at the bottom to {@code MAX_LAYERS - 1} at the top. */
+    public static final int MAX_LAYERS = 6;
 
     private static final Color BACKGROUND    = new Color(247, 247, 249);
     private static final Color GRID_COLOUR   = new Color(0, 0, 0, 55);
@@ -78,13 +101,14 @@ public class LevelCanvas extends JPanel {
     // ========================================================================================== \\
     //                                           Fields                                           \\
     // ========================================================================================== \\
-    private final TileGrid grid;
+    private final List<TileGrid> layers = new ArrayList<>();
     private final Color waterColour = readWaterColour();
     private final int cellWidth;
     private final int cellHeight;
     private final int maxColumns;
     private final int maxRows;
 
+    private int           activeLayer;
     private BufferedImage armedTile;
     private Point         hovered;
 
@@ -124,9 +148,12 @@ public class LevelCanvas extends JPanel {
         this.cellHeight = cellHeight;
         this.maxColumns = maxColumns;
         this.maxRows    = maxRows;
-        this.grid       = new TileGrid(maxColumns, maxRows);
 
-        setPreferredSize(new Dimension(maxColumns * cellWidth, maxRows * cellHeight));
+        for (var layer = 0; layer < MAX_LAYERS; layer++) {
+            layers.add(new TileGrid(maxColumns, maxRows));
+        }
+
+        applyGridSize();
         setBackground(BACKGROUND);
         installMouseHandling();
     }
@@ -134,8 +161,47 @@ public class LevelCanvas extends JPanel {
     // ========================================================================================== \\
     //                                          Getters                                           \\
     // ========================================================================================== \\
+    /**
+     * Returns the tiles of the layer a press currently stamps onto.
+     *
+     * @return the active layer's grid
+     */
     public TileGrid getGrid() {
-        return grid;
+        return readActiveGrid();
+    }
+
+    /**
+     * Returns the tiles of one layer, active or otherwise.
+     *
+     * @param layer the index, from 0 at the bottom to {@code MAX_LAYERS - 1} at the top
+     * @return that layer's grid
+     * @throws IndexOutOfBoundsException if the index addresses no layer
+     */
+    public TileGrid getLayer(int layer) {
+        requireLayer(layer);
+
+        return layers.get(layer);
+    }
+
+    /**
+     * Returns the index of the layer a press currently stamps onto.
+     *
+     * @return the active index, from 0 at the bottom to {@code MAX_LAYERS - 1} at the top
+     */
+    public int getActiveLayer() {
+        return activeLayer;
+    }
+
+    public int getLayerCount() {
+        return layers.size();
+    }
+
+    public int getColumns() {
+        return readActiveGrid().getColumns();
+    }
+
+    public int getRows() {
+        return readActiveGrid().getRows();
     }
 
     /**
@@ -190,6 +256,19 @@ public class LevelCanvas extends JPanel {
         repaint();
     }
 
+    /**
+     * Chooses the layer every later press stamps onto. The other layers keep their tiles and stay visible, so
+     * the change alters where a stamp lands and leaves the picture alone.
+     *
+     * @param layer the index, from 0 at the bottom to {@code MAX_LAYERS - 1} at the top
+     * @throws IndexOutOfBoundsException if the index addresses no layer
+     */
+    public void setActiveLayer(int layer) {
+        requireLayer(layer);
+
+        activeLayer = layer;
+    }
+
     // ========================================================================================== \\
     //                                        API Methods                                         \\
     // ========================================================================================== \\
@@ -202,24 +281,67 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Empties every cell and repaints, which also returns the grid to a state that accepts a new size.
+     * Empties every cell of the active layer and repaints, leaving the other layers as they stand.
      */
     public void clearGrid() {
-        grid.clear();
+        readActiveGrid().clear();
         repaint();
     }
 
     /**
-     * Resizes the grid and repaints, keeping it centred in the canvas.
+     * Empties every cell of every layer and repaints, which also leaves every size within the maximum available
+     * to {@link #resizeGrid(int, int)}.
+     */
+    public void clearAllLayers() {
+        layers.forEach(TileGrid::clear);
+        repaint();
+    }
+
+    /**
+     * Resizes every layer and lays the canvas out again at the new pixel size. All layers share one size, so a
+     * resize either sets all of them or sets none. Every tile inside the new bounds keeps its cell.
      *
      * @param columns the new width in cells
      * @param rows    the new height in cells
-     * @throws IllegalStateException    if the grid holds a tile
+     * @throws IllegalStateException    if a tile stands outside the new bounds on any layer
      * @throws IllegalArgumentException if the size falls outside one cell to the maximum
      */
     public void resizeGrid(int columns, int rows) {
-        grid.resize(columns, rows);
+        requireSize(columns, rows);
+
+        if (canResizeTo(columns, rows) == false) {
+            throw new IllegalStateException(String.format("A size of %d by %d would drop %d tiles", columns, rows, countTilesOutside(columns, rows)));
+        }
+
+        layers.forEach(layer -> layer.resize(columns, rows));
+        applyGridSize();
+        revalidate();
         repaint();
+    }
+
+    /**
+     * Reports whether a resize would keep every tile currently placed.
+     *
+     * @param columns the width to test, in cells
+     * @param rows    the height to test, in cells
+     * @return {@code true} while every tile on every layer stands inside those bounds
+     * @throws IllegalArgumentException if the size falls outside one cell to the maximum
+     */
+    public boolean canResizeTo(int columns, int rows) {
+        requireSize(columns, rows);
+
+        return countTilesOutside(columns, rows) == 0;
+    }
+
+    /**
+     * Counts the cells holding a tile across every layer.
+     *
+     * @return the number of tiles placed, from zero to the cell count times the layer count
+     */
+    public int countPlacedTiles() {
+        return layers.stream()
+                     .mapToInt(TileGrid::getPlacedCount)
+                     .sum();
     }
 
     @Override
@@ -266,8 +388,8 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Writes the armed tile into the cell containing the point, leaving the grid alone while no tile is armed or
-     * the point falls outside the grid.
+     * Writes the armed tile into the cell of the active layer containing the point, leaving every layer alone
+     * while no tile is armed or the point falls outside the grid.
      */
     private void stampAt(Point point) {
         if (armedTile == null) {
@@ -275,7 +397,7 @@ public class LevelCanvas extends JPanel {
         }
 
         findCell(point).ifPresent(cell -> {
-            grid.placeTile(cell.x, cell.y, armedTile);
+            readActiveGrid().placeTile(cell.x, cell.y, armedTile);
             repaint();
         });
     }
@@ -286,17 +408,14 @@ public class LevelCanvas extends JPanel {
      * @return the cell, and empty for a point outside the grid
      */
     private Optional<Point> findCell(Point point) {
-        var offsetX = readOffsetX();
-        var offsetY = readOffsetY();
-
-        if (point.x < offsetX || point.y < offsetY) {
+        if (point.x < 0 || point.y < 0) {
             return Optional.empty();
         }
 
-        var column = (point.x - offsetX) / cellWidth;
-        var row    = (point.y - offsetY) / cellHeight;
+        var column = point.x / cellWidth;
+        var row    = point.y / cellHeight;
 
-        return grid.contains(column, row) ? Optional.of(new Point(column, row)) : Optional.empty();
+        return readActiveGrid().contains(column, row) ? Optional.of(new Point(column, row)) : Optional.empty();
     }
 
     /**
@@ -313,46 +432,49 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Fills the grid with the water colour, which every later stage paints over. The fill stops at the grid, so
-     * a grid smaller than the maximum leaves the canvas around it in the panel background and the level's own
-     * extent stays visible.
+     * Fills the grid with the water colour, which every later stage paints over.
      */
     private void paintWater(Graphics2D canvas) {
         canvas.setColor(waterColour);
-        canvas.fillRect(readOffsetX(), readOffsetY(), grid.getColumns() * cellWidth, grid.getRows() * cellHeight);
+        canvas.fillRect(0, 0, getColumns() * cellWidth, getRows() * cellHeight);
     }
 
+    /**
+     * Draws every layer in index order, so layer 0 goes down first and each layer after it covers the one below
+     * wherever its tiles are opaque.
+     */
     private void paintTiles(Graphics2D canvas) {
-        var offsetX = readOffsetX();
-        var offsetY = readOffsetY();
+        for (var layer : layers) {
+            paintLayer(canvas, layer);
+        }
+    }
 
-        for (var row = 0; row < grid.getRows(); row++) {
-            for (var column = 0; column < grid.getColumns(); column++) {
-                var x = offsetX + column * cellWidth;
-                var y = offsetY + row * cellHeight;
+    private void paintLayer(Graphics2D canvas, TileGrid layer) {
+        for (var row = 0; row < layer.getRows(); row++) {
+            for (var column = 0; column < layer.getColumns(); column++) {
+                var x = column * cellWidth;
+                var y = row * cellHeight;
 
-                grid.readTile(column, row)
-                    .ifPresent(tile -> canvas.drawImage(tile, x, y, cellWidth, cellHeight, null));
+                layer.readTile(column, row)
+                     .ifPresent(tile -> canvas.drawImage(tile, x, y, cellWidth, cellHeight, null));
             }
         }
     }
 
     private void paintGrid(Graphics2D canvas) {
-        var offsetX = readOffsetX();
-        var offsetY = readOffsetY();
-        var right   = offsetX + grid.getColumns() * cellWidth  - 1;
-        var bottom  = offsetY + grid.getRows()    * cellHeight - 1;
+        var right  = getColumns() * cellWidth  - 1;
+        var bottom = getRows()    * cellHeight - 1;
 
         canvas.setColor(GRID_COLOUR);
 
-        for (var column = 0; column <= grid.getColumns(); column++) {
-            var x = Math.min(offsetX + column * cellWidth, right);
-            canvas.drawLine(x, offsetY, x, bottom);
+        for (var column = 0; column <= getColumns(); column++) {
+            var x = Math.min(column * cellWidth, right);
+            canvas.drawLine(x, 0, x, bottom);
         }
 
-        for (var row = 0; row <= grid.getRows(); row++) {
-            var y = Math.min(offsetY + row * cellHeight, bottom);
-            canvas.drawLine(offsetX, y, right, y);
+        for (var row = 0; row <= getRows(); row++) {
+            var y = Math.min(row * cellHeight, bottom);
+            canvas.drawLine(0, y, right, y);
         }
     }
 
@@ -365,8 +487,8 @@ public class LevelCanvas extends JPanel {
             return;
         }
 
-        var x = readOffsetX() + hovered.x * cellWidth;
-        var y = readOffsetY() + hovered.y * cellHeight;
+        var x = hovered.x * cellWidth;
+        var y = hovered.y * cellHeight;
 
         var ghost = (Graphics2D) canvas.create();
         ghost.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, HOVER_ALPHA));
@@ -378,24 +500,62 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Returns the pixels between the left edge of the canvas and the left edge of the grid, which centres a grid
-     * narrower than the maximum.
+     * Sets the panel's preferred and minimum size to the pixel size of the grid. Both matter: a layout with room
+     * to spare reads the preferred size and centres the canvas, and a layout with less room reads the minimum
+     * size, which keeps the grid drawn and clipped rather than shrunk away to nothing.
      */
-    private int readOffsetX() {
-        return (maxColumns - grid.getColumns()) * cellWidth / 2;
+    private void applyGridSize() {
+        var size = new Dimension(getColumns() * cellWidth, getRows() * cellHeight);
+
+        setPreferredSize(size);
+        setMinimumSize(size);
     }
 
-    private int readOffsetY() {
-        return (maxRows - grid.getRows()) * cellHeight / 2;
+    /**
+     * Counts the tiles standing outside the given bounds, across every layer.
+     */
+    private int countTilesOutside(int columns, int rows) {
+        var outside = 0;
+
+        for (var layer : layers) {
+            for (var row = 0; row < layer.getRows(); row++) {
+                for (var column = 0; column < layer.getColumns(); column++) {
+                    if ((column >= columns || row >= rows) && layer.readTile(column, row).isPresent()) {
+                        outside++;
+                    }
+                }
+            }
+        }
+
+        return outside;
+    }
+
+    private void requireSize(int columns, int rows) {
+        if (columns < 1 || columns > maxColumns || rows < 1 || rows > maxRows) {
+            throw new IllegalArgumentException(String.format("A size of %d by %d falls outside 1 by 1 to %d by %d", columns, rows, maxColumns, maxRows));
+        }
+    }
+
+    /**
+     * Returns the grid a press stamps onto, which every method reaching for the current layer goes through.
+     */
+    private TileGrid readActiveGrid() {
+        return layers.get(activeLayer);
+    }
+
+    private void requireLayer(int layer) {
+        if (layer < 0 || layer >= layers.size()) {
+            throw new IndexOutOfBoundsException(String.format("A stack of %d layers has no layer %d", layers.size(), layer));
+        }
     }
 
     // ========================================================================================== \\
     //                                       Helper Classes                                       \\
     // ========================================================================================== \\
     /**
-     * The tiles a {@link LevelCanvas} holds, addressed by column and row. A grid accepts a new size only while it
-     * holds no tiles, so the row and column counts settle the moment the first tile lands and stay settled until
-     * {@link #clear()} empties the grid again.
+     * The tiles of one layer, addressed by column and row. A grid takes a new size at any time and keeps the
+     * tiles the new bounds still contain, so growing a level costs nothing and shrinking one costs the tiles
+     * standing in the cells that go.
      */
     public class TileGrid {
 
@@ -507,25 +667,34 @@ public class LevelCanvas extends JPanel {
         }
 
         /**
-         * Sets the row and column count.
+         * Sets the row and column count, keeping every tile that stands inside both the old bounds and the new
+         * ones. A tile outside the new bounds is dropped, so a caller shrinking a grid checks
+         * {@link LevelCanvas#canResizeTo(int, int)} first.
          *
          * @param columns the new width in cells
          * @param rows    the new height in cells
-         * @throws IllegalStateException    if the grid holds a tile
          * @throws IllegalArgumentException if either count falls outside one cell to the maximum
          */
         public void resize(int columns, int rows) {
-            if (isEmpty() == false) {
-                throw new IllegalStateException(String.format("A grid holding %d tiles keeps its size of %d by %d", placed, this.columns, this.rows));
-            }
+            requireSize(columns, rows);
 
-            if (columns < 1 || columns > maxColumns || rows < 1 || rows > maxRows) {
-                throw new IllegalArgumentException(String.format("A size of %d by %d falls outside 1 by 1 to %d by %d", columns, rows, maxColumns, maxRows));
+            var resized = new BufferedImage[rows][columns];
+            var kept    = 0;
+
+            for (var row = 0; row < Math.min(rows, this.rows); row++) {
+                for (var column = 0; column < Math.min(columns, this.columns); column++) {
+                    resized[row][column] = tiles[row][column];
+
+                    if (resized[row][column] != null) {
+                        kept++;
+                    }
+                }
             }
 
             this.columns = columns;
             this.rows    = rows;
-            this.tiles   = new BufferedImage[rows][columns];
+            this.tiles   = resized;
+            this.placed  = kept;
         }
 
         private void requireInside(int column, int row) {
