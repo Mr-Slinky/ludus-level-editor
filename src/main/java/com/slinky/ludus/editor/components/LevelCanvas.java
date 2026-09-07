@@ -19,6 +19,11 @@ import javax.swing.JPanel;
  * takes the pixel size of the largest grid it will ever hold, so a smaller grid centres inside a panel whose
  * dimensions stay put.
  * <p>
+ * Every cell starts as water, drawn in the colour read from {@value #WATER_ASSET}, and a stamped tile covers
+ * that colour. A level therefore begins as an expanse of water that a user builds land into, and
+ * {@link #getWaterColour()} returns the colour a caller writing the level out needs for the cells nothing was
+ * stamped onto.
+ * <p>
  * A caller arms a tile through {@link #setArmedTile(BufferedImage)}, and a press then writes that tile into the
  * cell under the pointer. The armed tile stays armed, so one tile can be stamped as many times as a user likes.
  * While a tile is armed, the cell under the pointer shows that tile at reduced opacity inside an outline, so the
@@ -43,7 +48,7 @@ import javax.swing.JPanel;
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-06
+ *          Last modified: 2026-09-07
  * @since 1.0.0
  */
 public class LevelCanvas extends JPanel {
@@ -51,16 +56,30 @@ public class LevelCanvas extends JPanel {
     // ========================================================================================== \\
     //                                           Static                                           \\
     // ========================================================================================== \\
+    /** The asset the water colour is read from, below {@value Swatch#ROOT_DIR}. */
+    public static final String WATER_ASSET = "terrain/tilesets/Water Background color.png";
+
     private static final Color BACKGROUND    = new Color(247, 247, 249);
     private static final Color GRID_COLOUR   = new Color(0, 0, 0, 55);
     private static final Color HOVER_OUTLINE = new Color(255, 214, 0);
 
     private static final float HOVER_ALPHA = 0.45f;
 
+    /**
+     * Returns the colour filling {@value #WATER_ASSET}, taken from its top left pixel. The asset is a single
+     * flat colour, so any pixel in it answers the same.
+     */
+    private static Color readWaterColour() {
+        var image = Swatch.loadImage(WATER_ASSET);
+
+        return new Color(image.getRGB(0, 0), true);
+    }
+
     // ========================================================================================== \\
     //                                           Fields                                           \\
     // ========================================================================================== \\
     private final TileGrid grid;
+    private final Color waterColour = readWaterColour();
     private final int cellWidth;
     private final int cellHeight;
     private final int maxColumns;
@@ -117,6 +136,15 @@ public class LevelCanvas extends JPanel {
     // ========================================================================================== \\
     public TileGrid getGrid() {
         return grid;
+    }
+
+    /**
+     * Returns the colour every cell shows before a tile lands on it.
+     *
+     * @return the colour read from {@value #WATER_ASSET}
+     */
+    public Color getWaterColour() {
+        return waterColour;
     }
 
     public int getCellWidth() {
@@ -199,6 +227,7 @@ public class LevelCanvas extends JPanel {
         super.paintComponent(g);
 
         var canvas = (Graphics2D) g.create();
+        paintWater(canvas);
         paintTiles(canvas);
         paintGrid(canvas);
         paintHover(canvas);
@@ -281,6 +310,16 @@ public class LevelCanvas extends JPanel {
 
         hovered = cell;
         repaint();
+    }
+
+    /**
+     * Fills the grid with the water colour, which every later stage paints over. The fill stops at the grid, so
+     * a grid smaller than the maximum leaves the canvas around it in the panel background and the level's own
+     * extent stays visible.
+     */
+    private void paintWater(Graphics2D canvas) {
+        canvas.setColor(waterColour);
+        canvas.fillRect(readOffsetX(), readOffsetY(), grid.getColumns() * cellWidth, grid.getRows() * cellHeight);
     }
 
     private void paintTiles(Graphics2D canvas) {

@@ -227,7 +227,16 @@ public class Swatch extends JPanel {
     // ========================================================================================== \\
     //                                       Helper Methods                                       \\
     // ========================================================================================== \\
-    private static BufferedImage loadImage(String path) {
+    /**
+     * Reads an image out of the assets directory on the classpath.
+     *
+     * @param path the path below {@value #ROOT_DIR}, with or without a leading slash
+     * @return the decoded image
+     * @throws IllegalArgumentException if the classpath contains no resource at that path, or the resource
+     *                                  decodes to no image
+     * @throws UncheckedIOException     if reading the resource fails
+     */
+    static BufferedImage loadImage(String path) {
         var resource = ROOT_DIR + normalisePath(path);
 
         try (var source = Swatch.class.getResourceAsStream(resource)) {
