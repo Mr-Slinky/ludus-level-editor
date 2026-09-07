@@ -136,7 +136,12 @@ public class Swatch extends JPanel {
             throw new IllegalArgumentException(String.format("An image of %d by %d fits no tile of %d by %d", image.getWidth(), image.getHeight(), tileWidth, tileHeight));
         }
 
-        setPreferredSize(new Dimension(image.getWidth(), image.getHeight()));
+        var size = new Dimension(image.getWidth(), image.getHeight());
+
+        // the minimum matters as much as the preferred size: a layout short of room reads the minimum, and a
+        // swatch without one shrinks away to nothing rather than being clipped
+        setPreferredSize(size);
+        setMinimumSize(size);
         installMouseHandling();
     }
 
