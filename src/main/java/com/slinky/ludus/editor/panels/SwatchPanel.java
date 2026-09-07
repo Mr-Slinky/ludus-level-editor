@@ -206,8 +206,8 @@ public class SwatchPanel extends JPanel {
         var previous = new ChevronButton(ChevronButton.Direction.LEFT);
         var next     = new ChevronButton(ChevronButton.Direction.RIGHT);
 
-        previous.addActionListener(e -> showPrevious());
-        next.addActionListener(e -> showNext());
+        previous.addActionListener(_ -> showPrevious());
+        next.addActionListener(_ -> showNext());
 
         var bar = new JPanel(new BorderLayout());
         bar.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
