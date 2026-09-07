@@ -34,7 +34,7 @@ import javax.swing.JButton;
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-06
+ *          Last modified: 2026-09-07
  * @since 1.0.0
  */
 public class ChevronButton extends JButton {
@@ -49,9 +49,9 @@ public class ChevronButton extends JButton {
     private static final Color HALO_HOVER       = new Color(0, 0, 0, 26);
     private static final Color HALO_PRESSED     = new Color(0, 0, 0, 54);
 
-    private static final float CHEVRON_WIDTH_RATIO  = 0.24f;
-    private static final float CHEVRON_HEIGHT_RATIO = 0.42f;
-    private static final float STROKE_RATIO         = 0.085f;
+    private static final float CHEVRON_DEPTH_RATIO = 0.24f;
+    private static final float CHEVRON_SPAN_RATIO  = 0.42f;
+    private static final float STROKE_RATIO        = 0.085f;
 
     // ========================================================================================== \\
     //                                           Fields                                           \\
@@ -156,20 +156,29 @@ public class ChevronButton extends JButton {
     }
 
     /**
-     * Draws the chevron as two strokes meeting at the tip, with round caps and a round join so the corner reads
+     * Draws the chevron as two strokes meeting at the tip, with round caps and a round join so the corner draws
      * as a single soft angle.
+     * <p>
+     * The tip lies one depth from the centre along the direction's step, and the two tails lie one depth the
+     * other way, spread one span apart across it. Turning the step through a right angle gives that spread, so
+     * the same arithmetic serves all four directions.
      */
     private void paintChevron(Graphics2D canvas, float centreX, float centreY) {
-        var halfWidth  = diameter * CHEVRON_WIDTH_RATIO  / 2f;
-        var halfHeight = diameter * CHEVRON_HEIGHT_RATIO / 2f;
-        var pointsLeft = direction == Direction.LEFT;
-        var tipX       = pointsLeft ? centreX - halfWidth : centreX + halfWidth;
-        var tailX      = pointsLeft ? centreX + halfWidth : centreX - halfWidth;
+        var depth = diameter * CHEVRON_DEPTH_RATIO / 2f;
+        var span  = diameter * CHEVRON_SPAN_RATIO  / 2f;
+
+        var tipX  = centreX + direction.getStepX() * depth;
+        var tipY  = centreY + direction.getStepY() * depth;
+        var tailX = centreX - direction.getStepX() * depth;
+        var tailY = centreY - direction.getStepY() * depth;
+
+        var spreadX = direction.getStepY() * span;
+        var spreadY = direction.getStepX() * span;
 
         var chevron = new GeneralPath();
-        chevron.moveTo(tailX, centreY - halfHeight);
-        chevron.lineTo(tipX, centreY);
-        chevron.lineTo(tailX, centreY + halfHeight);
+        chevron.moveTo(tailX - spreadX, tailY - spreadY);
+        chevron.lineTo(tipX, tipY);
+        chevron.lineTo(tailX + spreadX, tailY + spreadY);
 
         canvas.setColor(isEnabled() ? CHEVRON : CHEVRON_DISABLED);
         canvas.setStroke(new BasicStroke(diameter * STROKE_RATIO, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
@@ -180,11 +189,40 @@ public class ChevronButton extends JButton {
     //                                       Helper Classes                                       \\
     // ========================================================================================== \\
     /**
-     * The way a chevron points, which is also the direction the button steps in.
+     * The way a chevron points, which is also the direction the button steps in. Each constant defines its step
+     * as a pair of offsets from the centre of the button, one along each axis.
      */
     public enum Direction {
-        LEFT,
-        RIGHT
+
+        LEFT(-1, 0),
+        RIGHT(1, 0),
+        UP(0, -1),
+        DOWN(0, 1);
+
+        // ========================================================================================== \\
+        //                                           Fields                                           \\
+        // ========================================================================================== \\
+        private final int stepX;
+        private final int stepY;
+
+        // ========================================================================================== \\
+        //                                       Constructor(s)                                       \\
+        // ========================================================================================== \\
+        Direction(int stepX, int stepY) {
+            this.stepX = stepX;
+            this.stepY = stepY;
+        }
+
+        // ========================================================================================== \\
+        //                                          Getters                                           \\
+        // ========================================================================================== \\
+        public int getStepX() {
+            return stepX;
+        }
+
+        public int getStepY() {
+            return stepY;
+        }
     }
 
 }
