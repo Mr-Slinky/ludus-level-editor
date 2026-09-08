@@ -71,7 +71,7 @@ public class TitleBarButton extends JButton {
     /**
      * Builds a caption button of the default size.
      *
-     * @param glyph the window control this button draws
+     * @param glyph the window control that this button draws
      * @throws IllegalArgumentException if the glyph is null
      */
     public TitleBarButton(Glyph glyph) {
@@ -82,7 +82,7 @@ public class TitleBarButton extends JButton {
      * Builds a caption button of the given size. The glyph and the stroke that draws it scale with the height, so
      * a taller button keeps the same proportions.
      *
-     * @param glyph  the window control this button draws
+     * @param glyph  the window control that this button draws
      * @param width  the button width in pixels
      * @param height the button height in pixels, which also sets the glyph size
      * @throws IllegalArgumentException if the glyph is null, or either dimension is zero or negative
@@ -119,7 +119,7 @@ public class TitleBarButton extends JButton {
     /**
      * Replaces the glyph and repaints, which is how the maximise button becomes the restore button.
      *
-     * @param glyph the window control this button draws from now on
+     * @param glyph the window control that this button draws from now on
      * @throws IllegalArgumentException if the glyph is null
      */
     public void setGlyph(Glyph glyph) {
@@ -136,7 +136,7 @@ public class TitleBarButton extends JButton {
     // ========================================================================================== \\
     /**
      * Paints the fill and the glyph, with the glyph centred in the button's bounds so that a layout giving the
-     * button more room than it asked for leaves the artwork the size the constructor set.
+     * button more room than it asked for leaves the artwork at the size that the constructor set.
      */
     @Override
     protected void paintComponent(Graphics g) {
@@ -155,7 +155,8 @@ public class TitleBarButton extends JButton {
     // ========================================================================================== \\
     /**
      * Fills the button's bounds while the pointer is over it, and leaves the background bare the rest of the
-     * time. The close button fills red, which is the one control a user benefits from picking out by colour.
+     * time. The close button fills red, which is the one control that a user benefits from picking out by
+     * colour.
      */
     private void paintFill(Graphics2D canvas) {
         var model   = getModel();
@@ -215,8 +216,8 @@ public class TitleBarButton extends JButton {
     }
 
     /**
-     * Returns the colour the glyph draws in, which turns white over the red fill the close button paints under
-     * the pointer.
+     * Returns the colour that the glyph draws in, which turns white over the red fill that the close button
+     * paints under the pointer.
      */
     private Color readGlyphColour() {
         var model = getModel();
@@ -232,7 +233,7 @@ public class TitleBarButton extends JButton {
     //                                       Helper Classes                                       \\
     // ========================================================================================== \\
     /**
-     * The window control a caption button draws.
+     * The window control that a caption button draws.
      */
     public enum Glyph {
         /** A horizontal bar, for the button that sends a window to the taskbar. */

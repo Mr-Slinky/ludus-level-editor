@@ -8,7 +8,7 @@ import javax.swing.SwingUtilities;
  * screen.
  * <p>
  * The frame is undecorated, so the caption comes from the {@link com.slinky.ludus.editor.panels.TitleBar
- * TitleBar} inside the root panel, and the window paints every pixel a user sees.
+ * TitleBar} inside the root panel, and the window paints every pixel that a user sees.
  * <p>
  * <b>Opening the editor</b>
  * <p>

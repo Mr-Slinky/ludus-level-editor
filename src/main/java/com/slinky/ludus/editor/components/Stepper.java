@@ -25,7 +25,7 @@ import javax.swing.SwingConstants;
  * what the two buttons call. {@link #showValue(int)} writes the caption alone, so a container that rejects a
  * change returns the control to the value that stands without hearing its own rejection back.
  * <p>
- * <b>Choosing the layer a canvas stamps onto</b>
+ * <b>Choosing the layer that a canvas stamps onto</b>
  * <p>
  * A caller builds a stepper over the layer range, wires it to a canvas, and steps it once:
  * <pre>{@code
@@ -74,9 +74,9 @@ public class Stepper extends JPanel {
     /**
      * Builds a stepper over a range, starting at the given value.
      *
-     * @param name    the word the caption puts before the value
-     * @param minimum the lowest value the down button reaches
-     * @param maximum the highest value the up button reaches
+     * @param name    the word that the caption puts before the value
+     * @param minimum the lowest value that the down button reaches
+     * @param maximum the highest value that the up button reaches
      * @param value   the value to start on
      * @throws IllegalArgumentException if the name is null, the maximum falls below the minimum, or the starting
      *                                  value falls outside the range
@@ -198,7 +198,7 @@ public class Stepper extends JPanel {
     //                                       Helper Classes                                       \\
     // ========================================================================================== \\
     /**
-     * Receives the value a stepper moves to.
+     * Receives the value that a stepper moves to.
      */
     @FunctionalInterface
     public interface ValueListener {

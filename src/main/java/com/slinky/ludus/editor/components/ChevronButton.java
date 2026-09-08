@@ -66,7 +66,7 @@ public class ChevronButton extends JButton {
     /**
      * Builds a chevron button of the default diameter.
      *
-     * @param direction the way the chevron points
+     * @param direction the way that the chevron points
      */
     public ChevronButton(Direction direction) {
         this(direction, DEFAULT_DIAMETER);
@@ -76,7 +76,7 @@ public class ChevronButton extends JButton {
      * Builds a chevron button of the given diameter. The chevron and the stroke that draws it scale with the
      * diameter, so a larger button keeps the same proportions.
      *
-     * @param direction the way the chevron points
+     * @param direction the way that the chevron points
      * @param diameter  the width and height of the halo in pixels
      * @throws IllegalArgumentException if the direction is null or the diameter is zero or negative
      */
@@ -117,7 +117,7 @@ public class ChevronButton extends JButton {
     // ========================================================================================== \\
     /**
      * Paints the halo and the chevron, centred in the button's bounds so that a layout giving the button more
-     * room than it asked for leaves the artwork the size the constructor set.
+     * room than it asked for leaves the artwork at the size that the constructor set.
      */
     @Override
     protected void paintComponent(Graphics g) {
@@ -190,8 +190,8 @@ public class ChevronButton extends JButton {
     //                                       Helper Classes                                       \\
     // ========================================================================================== \\
     /**
-     * The way a chevron points, which is also the direction the button steps in. Each constant defines its step
-     * as a pair of offsets from the centre of the button, one along each axis.
+     * The way that a chevron points, which is also the direction that the button steps in. Each constant
+     * defines its step as a pair of offsets from the centre of the button, one along each axis.
      */
     public enum Direction {
 

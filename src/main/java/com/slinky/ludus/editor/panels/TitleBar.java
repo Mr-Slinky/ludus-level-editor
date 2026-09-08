@@ -22,11 +22,11 @@ import javax.swing.SwingUtilities;
 
 /**
  * The strip that replaces the system caption on an undecorated window, with a minimise, a maximise and a close
- * button along its right edge. Dragging anywhere else on the strip moves the window, which is the gesture the
- * system caption would otherwise provide.
+ * button along its right edge. Dragging anywhere else on the strip moves the window, which is the gesture that
+ * the system caption would otherwise provide.
  * <p>
- * The bar reaches its window through {@link SwingUtilities#getWindowAncestor(Component)} at the moment a button
- * is pressed, so a caller adds the bar to any window without passing that window in. Closing dispatches
+ * The bar reaches its window through {@link SwingUtilities#getWindowAncestor(Component)} at the moment that a
+ * button is pressed, so a caller adds the bar to any window without passing that window in. Closing dispatches
  * {@link WindowEvent#WINDOW_CLOSING} rather than ending the process, so the window's own
  * {@code setDefaultCloseOperation} and every registered {@code WindowListener} run as they do under the system
  * caption.
@@ -71,7 +71,7 @@ public class TitleBar extends JPanel {
     private final JPanel leading  = new JPanel(new FlowLayout(FlowLayout.LEFT,  0, 0));
     private final JPanel trailing = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
 
-    /** The distance from the window's top left corner to the point a drag started, in screen pixels. */
+    /** The distance from the window's top left corner to the point at which a drag started, in screen pixels. */
     private Point grabOffset;
 
     // ========================================================================================== \\
@@ -145,8 +145,8 @@ public class TitleBar extends JPanel {
     }
 
     /**
-     * Grows the window to fill the screen, or returns a filled window to the size it had before, and swaps the
-     * middle button's glyph to match the state the window ends in.
+     * Grows the window to fill the screen, or returns a filled window to the size that it had before, and swaps
+     * the middle button's glyph to match the state that the window ends in.
      * <p>
      * The maximised bounds come from {@link GraphicsEnvironment#getMaximumWindowBounds()}, which stops at the
      * taskbar. An undecorated window otherwise grows over it.
@@ -199,7 +199,7 @@ public class TitleBar extends JPanel {
 
     /**
      * Makes a drag on the given component move the window. Swing delivers a mouse event to the deepest component
-     * under the pointer alone, so every child a user can grab receives its own copy of this listener.
+     * under the pointer alone, so every child that a user can grab receives its own copy of this listener.
      */
     private void installDragging(JComponent component) {
         var dragging = new MouseAdapter() {
@@ -222,8 +222,8 @@ public class TitleBar extends JPanel {
     }
 
     /**
-     * Moves the window so that the point the drag started on stays under the pointer. A maximised window stays
-     * where it is, since it occupies the whole screen already.
+     * Moves the window so that the point at which the drag started stays under the pointer. A maximised window
+     * stays where it is, since it occupies the whole screen already.
      */
     private void dragWindowTo(int pointerX, int pointerY) {
         var window = SwingUtilities.getWindowAncestor(this);
@@ -236,8 +236,8 @@ public class TitleBar extends JPanel {
     }
 
     /**
-     * Returns the window this bar belongs to, as a {@link Frame}, which is the type that carries the extended
-     * state the minimise and maximise buttons set.
+     * Returns the window that this bar belongs to, as a {@link Frame}, which is the type that declares the
+     * extended state that the minimise and maximise buttons set.
      *
      * @return the ancestor frame, and empty while the bar belongs to no window or to a window of another type
      */
