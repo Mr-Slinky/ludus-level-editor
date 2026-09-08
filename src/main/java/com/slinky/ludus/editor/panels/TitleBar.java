@@ -35,6 +35,8 @@ import javax.swing.SwingUtilities;
  * edge, and {@link #addTrailing(JComponent)} places one immediately left of the three window buttons.
  * <p>
  * <b>Giving an undecorated frame a caption</b>
+ * <p>
+ * A caller builds the bar, captions it, and adds it along the top of a frame that paints its own decoration:
  * <pre>{@code
  * var bar = new TitleBar();
  * bar.addLeading(new JLabel("Ludus Level Editor"));

@@ -9,17 +9,19 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 
 /**
- * The strip along the bottom of the window, where the controls that act on the level itself go. Two areas take
- * components: {@link #addLeading(JComponent)} places one against the left edge, and
+ * The strip along the bottom of the window, where a caller adds the controls that act on the level itself. Two
+ * areas take components: {@link #addLeading(JComponent)} places one against the left edge, and
  * {@link #addTrailing(JComponent)} places one against the right.
  * <p>
  * A separator line runs along the top of the strip, and a margin surrounds both areas, so a control added to
  * either one stands clear of the window edge and of the canvas above.
  * <p>
- * <b>Putting a layer selector along the bottom of a window</b>
+ * <b>Putting a layer stepper along the bottom of a window</b>
+ * <p>
+ * A caller builds the strip, adds one control against its left edge, and drops it into a frame:
  * <pre>{@code
  * var bar = new ControlBar();
- * bar.addLeading(new LayerSelector(6));
+ * bar.addLeading(new Stepper("Layer", 0, 5, 0));
  *
  * frame.add(bar, BorderLayout.SOUTH);
  *

@@ -4,13 +4,23 @@ import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
 /**
- * The main window. Currently used as a scratch pad for displaying components as we build them
+ * The application window, which opens a {@link RootPanel} over the terrain tilesets and centres itself on the
+ * screen.
  * <p>
- * The frame is undecorated, so the caption comes from the {@code TitleBar} inside {@link RootPanel} and the
- * window paints every pixel a user sees.
+ * The frame is undecorated, so the caption comes from the {@link com.slinky.ludus.editor.panels.TitleBar
+ * TitleBar} inside the root panel, and the window paints every pixel a user sees.
+ * <p>
+ * <b>Opening the editor</b>
+ * <p>
+ * A caller shows the window on the event dispatch thread:
+ * <pre>{@code
+ * SwingUtilities.invokeLater(() -> new Editor().setVisible(true));
+ * }</pre>
  *
  * @author Kheagen Haskins
  * @version 1.0.0
+ *          <p>
+ *          Last modified: 2026-09-08
  * @since 1.0.0
  */
 public class Editor extends JFrame {

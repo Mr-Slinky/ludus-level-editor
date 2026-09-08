@@ -12,19 +12,20 @@ import java.awt.geom.Rectangle2D;
 import javax.swing.JButton;
 
 /**
- * A caption button that paints one window control glyph and nothing else at rest. A rectangle fills the whole
- * button while the pointer is over it and darkens while the button is held down, in grey for {@code MINIMISE},
- * {@code MAXIMISE} and {@code RESTORE}, and in red under a white glyph for {@code CLOSE}.
+ * A caption button that paints one window control glyph at rest. A rectangle fills the whole button while the
+ * pointer is over it and darkens while the button is held down, in grey for {@link Glyph#MINIMISE},
+ * {@link Glyph#MAXIMISE} and {@link Glyph#RESTORE}, and in red under a white glyph for {@link Glyph#CLOSE}.
  * <p>
- * The class extends {@link JButton} and overrides {@link #paintComponent(Graphics)} alone, so the button model
- * continues to supply the rollover, armed and pressed states the painting reads, and
- * {@link JButton#addActionListener(java.awt.event.ActionListener)} behaves as it does on any other button.
+ * Painting is the only override, so an action listener added to a caption button behaves as it does on any
+ * other {@link JButton}.
  * <p>
  * A single button covers both halves of the maximise toggle. A caller that maximises a window calls
  * {@link #setGlyph(Glyph)} with {@link Glyph#RESTORE}, and passes {@link Glyph#MAXIMISE} when it returns the
  * window to its previous size.
  * <p>
  * <b>Closing a window from a caption button</b>
+ * <p>
+ * A caller wires the close button to the window's own closing event:
  * <pre>{@code
  * var close = new TitleBarButton(TitleBarButton.Glyph.CLOSE);
  *

@@ -3,8 +3,8 @@ package com.slinky.ludus.editor.components;
 import java.awt.image.BufferedImage;
 
 /**
- * The image one cell draws, together with the index of the tileset it was cut from and the cell of that
- * tileset it occupies.
+ * The image one cell draws, together with the index of the tileset it was cut from and the cell it occupies
+ * inside that tileset.
  *
  * @param image        the pixels to draw, at the tileset's own resolution
  * @param tileset      the index of the tileset this tile was cut from

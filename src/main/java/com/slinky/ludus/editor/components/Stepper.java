@@ -26,6 +26,8 @@ import javax.swing.SwingConstants;
  * change returns the control to the value that stands without hearing its own rejection back.
  * <p>
  * <b>Choosing the layer a canvas stamps onto</b>
+ * <p>
+ * A caller builds a stepper over the layer range, wires it to a canvas, and steps it once:
  * <pre>{@code
  * var layer = new Stepper("Layer", 0, 5, 0);
  *

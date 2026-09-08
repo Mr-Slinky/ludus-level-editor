@@ -21,8 +21,8 @@ import javax.swing.SwingConstants;
 
 /**
  * Stacks several {@link Swatch} instances into a deck and shows one at a time, with a back and a forward button
- * either side of a caption stating the name of the visible tileset. {@link #showNext()} past the last swatch
- * shows the first, and {@link #showPrevious()} before the first shows the last.
+ * either side of a caption stating the name of the visible tileset. Calling {@link #showNext()} on the last
+ * swatch shows the first, and calling {@link #showPrevious()} on the first shows the last.
  * <p>
  * One tile stays selected across the whole deck. A press on the visible swatch clears the selection on every
  * other swatch, so {@link #getSelection()} answers for the whole deck, and a selection made on one tileset

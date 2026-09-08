@@ -13,20 +13,21 @@ import java.awt.geom.GeneralPath;
 import javax.swing.JButton;
 
 /**
- * A round navigation button that paints a single chevron and nothing else at rest. A circle fades in behind the
- * chevron while the pointer is over the button, and darkens while the button is held down.
+ * A round navigation button that paints a single chevron at rest. A circle fades in behind the chevron while
+ * the pointer is over the button, and darkens while the button is held down.
  * <p>
- * The class extends {@link JButton} and overrides {@link #paintComponent(Graphics)} alone, so the button model
- * continues to supply the rollover, armed and pressed states the painting reads, and
- * {@link JButton#addActionListener(java.awt.event.ActionListener)} behaves as it does on any other button.
+ * Painting is the only override, so an action listener added to a chevron button behaves as it does on any
+ * other {@link JButton}.
  * <p>
  * <b>Stepping through a deck</b>
+ * <p>
+ * A caller builds a pair of buttons and points each one at a method of the deck:
  * <pre>{@code
  * var previous = new ChevronButton(ChevronButton.Direction.LEFT);
  * var next     = new ChevronButton(ChevronButton.Direction.RIGHT);
  *
- * previous.addActionListener(e -> deck.showPrevious());
- * next.addActionListener(e -> deck.showNext());
+ * previous.addActionListener(_ -> deck.showPrevious());
+ * next.addActionListener(_ -> deck.showNext());
  *
  * // both report a preferred size of 28 by 28 pixels
  * }</pre>
