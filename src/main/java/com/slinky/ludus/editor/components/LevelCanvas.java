@@ -53,13 +53,13 @@ import javax.swing.JPanel;
  * void stampCliff(BufferedImage art) {
  *     var canvas = new LevelCanvas(64, 15, 15);
  *
- *     // 15 columns of 64 pixels by 15 rows of 64 pixels
+ *     // 15 rows of 64 pixels by 15 columns of 64 pixels
  *     canvas.getPreferredSize();     // java.awt.Dimension[width=960,height=960]
  *
  *     canvas.setArmedTile(new TileSource(art, 0, 1, 1));
  *
- *     // a press at (300, 140) writes the armed tile into column 4, row 2 of layer 0
- *     var stamped = canvas.getGrid().readTile(4, 2);
+ *     // a press at (300, 140) writes the armed tile into row 2, column 4 of layer 0
+ *     var stamped = canvas.getGrid().readTile(2, 4);
  *
  *     stamped.get().tileset();       // 0
  *     stamped.get().sourceColumn();  // 1
@@ -67,14 +67,14 @@ import javax.swing.JPanel;
  *     canvas.setActiveLayer(1);
  *
  *     // a press on the same cell now writes to layer 1, and layer 0 keeps its tile
- *     canvas.getLayer(0).readTile(4, 2).isPresent();  // true
+ *     canvas.getLayer(0).readTile(2, 4).isPresent();  // true
  * }
  * }</pre>
  *
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-07
+ *          Last modified: 2026-09-08
  * @since 1.0.0
  */
 public class LevelCanvas extends JPanel {
@@ -111,8 +111,8 @@ public class LevelCanvas extends JPanel {
     private final Color waterColour = readWaterColour();
     private final int cellWidth;
     private final int cellHeight;
-    private final int maxColumns;
     private final int maxRows;
+    private final int maxColumns;
 
     private int        activeLayer;
     private TileSource armedTile;
@@ -125,11 +125,11 @@ public class LevelCanvas extends JPanel {
      * Builds a canvas of square cells, with the grid starting at its largest.
      *
      * @param cellSize   the cell width and height in pixels
-     * @param maxColumns the widest the grid can be, in cells
      * @param maxRows    the tallest the grid can be, in cells
+     * @param maxColumns the widest the grid can be, in cells
      */
-    public LevelCanvas(int cellSize, int maxColumns, int maxRows) {
-        this(cellSize, cellSize, maxColumns, maxRows);
+    public LevelCanvas(int cellSize, int maxRows, int maxColumns) {
+        this(cellSize, cellSize, maxRows, maxColumns);
     }
 
     /**
@@ -137,26 +137,26 @@ public class LevelCanvas extends JPanel {
      *
      * @param cellWidth  the cell width in pixels
      * @param cellHeight the cell height in pixels
-     * @param maxColumns the widest the grid can be, in cells
      * @param maxRows    the tallest the grid can be, in cells
+     * @param maxColumns the widest the grid can be, in cells
      * @throws IllegalArgumentException if any argument is zero or negative
      */
-    public LevelCanvas(int cellWidth, int cellHeight, int maxColumns, int maxRows) {
+    public LevelCanvas(int cellWidth, int cellHeight, int maxRows, int maxColumns) {
         if (cellWidth <= 0 || cellHeight <= 0) {
             throw new IllegalArgumentException(String.format("Cell size must be positive, given %d by %d", cellWidth, cellHeight));
         }
 
-        if (maxColumns <= 0 || maxRows <= 0) {
-            throw new IllegalArgumentException(String.format("The grid maximum must be positive, given %d by %d", maxColumns, maxRows));
+        if (maxRows <= 0 || maxColumns <= 0) {
+            throw new IllegalArgumentException(String.format("The grid maximum must be positive, given %d rows by %d columns", maxRows, maxColumns));
         }
 
         this.cellWidth  = cellWidth;
         this.cellHeight = cellHeight;
-        this.maxColumns = maxColumns;
         this.maxRows    = maxRows;
+        this.maxColumns = maxColumns;
 
         for (var layer = 0; layer < MAX_LAYERS; layer++) {
-            layers.add(new TileGrid(maxColumns, maxRows));
+            layers.add(new TileGrid(maxRows, maxColumns));
         }
 
         applyGridSize();
@@ -202,12 +202,12 @@ public class LevelCanvas extends JPanel {
         return layers.size();
     }
 
-    public int getColumns() {
-        return readActiveGrid().getColumns();
-    }
-
     public int getRows() {
         return readActiveGrid().getRows();
+    }
+
+    public int getColumns() {
+        return readActiveGrid().getColumns();
     }
 
     /**
@@ -227,12 +227,12 @@ public class LevelCanvas extends JPanel {
         return cellHeight;
     }
 
-    public int getMaxColumns() {
-        return maxColumns;
-    }
-
     public int getMaxRows() {
         return maxRows;
+    }
+
+    public int getMaxColumns() {
+        return maxColumns;
     }
 
     /**
@@ -307,19 +307,19 @@ public class LevelCanvas extends JPanel {
      * Resizes every layer and lays the canvas out again at the new pixel size. All layers share one size, so a
      * resize either sets all of them or sets none. Every tile inside the new bounds keeps its cell.
      *
-     * @param columns the new width in cells
      * @param rows    the new height in cells
+     * @param columns the new width in cells
      * @throws IllegalStateException    if a tile stands outside the new bounds on any layer
      * @throws IllegalArgumentException if the size falls outside one cell to the maximum
      */
-    public void resizeGrid(int columns, int rows) {
-        requireSize(columns, rows);
+    public void resizeGrid(int rows, int columns) {
+        requireSize(rows, columns);
 
-        if (canResizeTo(columns, rows) == false) {
-            throw new IllegalStateException(String.format("A size of %d by %d would drop %d tiles", columns, rows, countTilesOutside(columns, rows)));
+        if (canResizeTo(rows, columns) == false) {
+            throw new IllegalStateException(String.format("A size of %d rows by %d columns would drop %d tiles", rows, columns, countTilesOutside(rows, columns)));
         }
 
-        layers.forEach(layer -> layer.resize(columns, rows));
+        layers.forEach(layer -> layer.resize(rows, columns));
         applyGridSize();
         revalidate();
         repaint();
@@ -328,15 +328,15 @@ public class LevelCanvas extends JPanel {
     /**
      * Reports whether a resize would keep every tile currently placed.
      *
-     * @param columns the width to test, in cells
      * @param rows    the height to test, in cells
+     * @param columns the width to test, in cells
      * @return {@code true} while every tile on every layer stands inside those bounds
      * @throws IllegalArgumentException if the size falls outside one cell to the maximum
      */
-    public boolean canResizeTo(int columns, int rows) {
-        requireSize(columns, rows);
+    public boolean canResizeTo(int rows, int columns) {
+        requireSize(rows, columns);
 
-        return countTilesOutside(columns, rows) == 0;
+        return countTilesOutside(rows, columns) == 0;
     }
 
     /**
@@ -403,7 +403,7 @@ public class LevelCanvas extends JPanel {
         }
 
         findCell(point).ifPresent(cell -> {
-            readActiveGrid().placeTile(cell.x, cell.y, armedTile);
+            readActiveGrid().placeTile(cell.y, cell.x, armedTile);
             repaint();
         });
     }
@@ -418,10 +418,10 @@ public class LevelCanvas extends JPanel {
             return Optional.empty();
         }
 
-        var column = point.x / cellWidth;
         var row    = point.y / cellHeight;
+        var column = point.x / cellWidth;
 
-        return readActiveGrid().contains(column, row) ? Optional.of(new Point(column, row)) : Optional.empty();
+        return readActiveGrid().contains(row, column) ? Optional.of(new Point(column, row)) : Optional.empty();
     }
 
     /**
@@ -461,7 +461,7 @@ public class LevelCanvas extends JPanel {
                 var x = column * cellWidth;
                 var y = row * cellHeight;
 
-                layer.readTile(column, row)
+                layer.readTile(row, column)
                      .ifPresent(tile -> canvas.drawImage(tile.image(), x, y, cellWidth, cellHeight, null));
             }
         }
@@ -473,14 +473,14 @@ public class LevelCanvas extends JPanel {
 
         canvas.setColor(GRID_COLOUR);
 
-        for (var column = 0; column <= getColumns(); column++) {
-            var x = Math.min(column * cellWidth, right);
-            canvas.drawLine(x, 0, x, bottom);
-        }
-
         for (var row = 0; row <= getRows(); row++) {
             var y = Math.min(row * cellHeight, bottom);
             canvas.drawLine(0, y, right, y);
+        }
+
+        for (var column = 0; column <= getColumns(); column++) {
+            var x = Math.min(column * cellWidth, right);
+            canvas.drawLine(x, 0, x, bottom);
         }
     }
 
@@ -520,13 +520,13 @@ public class LevelCanvas extends JPanel {
     /**
      * Counts the tiles standing outside the given bounds, across every layer.
      */
-    private int countTilesOutside(int columns, int rows) {
+    private int countTilesOutside(int rows, int columns) {
         var outside = 0;
 
         for (var layer : layers) {
             for (var row = 0; row < layer.getRows(); row++) {
                 for (var column = 0; column < layer.getColumns(); column++) {
-                    if ((column >= columns || row >= rows) && layer.readTile(column, row).isPresent()) {
+                    if ((row >= rows || column >= columns) && layer.readTile(row, column).isPresent()) {
                         outside++;
                     }
                 }
@@ -536,9 +536,9 @@ public class LevelCanvas extends JPanel {
         return outside;
     }
 
-    private void requireSize(int columns, int rows) {
-        if (columns < 1 || columns > maxColumns || rows < 1 || rows > maxRows) {
-            throw new IllegalArgumentException(String.format("A size of %d by %d falls outside 1 by 1 to %d by %d", columns, rows, maxColumns, maxRows));
+    private void requireSize(int rows, int columns) {
+        if (rows < 1 || rows > maxRows || columns < 1 || columns > maxColumns) {
+            throw new IllegalArgumentException(String.format("A size of %d rows by %d columns falls outside 1 by 1 to %d rows by %d columns", rows, columns, maxRows, maxColumns));
         }
     }
 

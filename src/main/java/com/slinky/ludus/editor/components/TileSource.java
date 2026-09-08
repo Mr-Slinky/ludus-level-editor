@@ -8,16 +8,16 @@ import java.awt.image.BufferedImage;
  *
  * @param image        the pixels to draw, at the tileset's own resolution
  * @param tileset      the index of the tileset this tile was cut from
- * @param sourceColumn the column of that tileset this tile was cut from
  * @param sourceRow    the row of that tileset this tile was cut from
+ * @param sourceColumn the column of that tileset this tile was cut from
  *
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-07
+ *          Last modified: 2026-09-08
  * @since 1.0.0
  */
-public record TileSource(BufferedImage image, int tileset, int sourceColumn, int sourceRow) {
+public record TileSource(BufferedImage image, int tileset, int sourceRow, int sourceColumn) {
 
     /**
      * Validates the image and the three indices.
@@ -33,8 +33,8 @@ public record TileSource(BufferedImage image, int tileset, int sourceColumn, int
             throw new IllegalArgumentException(String.format("A tileset index must be 0 or greater, given %d", tileset));
         }
 
-        if (sourceColumn < 0 || sourceRow < 0) {
-            throw new IllegalArgumentException(String.format("A source position must be 0 or greater, given column %d, row %d", sourceColumn, sourceRow));
+        if (sourceRow < 0 || sourceColumn < 0) {
+            throw new IllegalArgumentException(String.format("A source position must be 0 or greater, given row %d, column %d", sourceRow, sourceColumn));
         }
     }
 

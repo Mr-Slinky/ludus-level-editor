@@ -45,13 +45,14 @@ import javax.swing.SwingConstants;
  * // after a press on the third tile of the second row of that swatch
  * deck.getSelection();                           // Optional[java.awt.Point[x=2,y=1]]
  * deck.readSelectedTile().get().tileset();       // 1
+ * deck.readSelectedTile().get().sourceRow();     // 1
  * deck.readSelectedTile().get().sourceColumn();  // 2
  * }</pre>
  *
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-07
+ *          Last modified: 2026-09-08
  * @since 1.0.0
  */
 public class SwatchPanel extends JPanel {
@@ -189,7 +190,7 @@ public class SwatchPanel extends JPanel {
 
         return swatch.getSelection()
                      .flatMap(tile -> swatch.readSelectedImage()
-                                            .map(image -> new TileSource(image, index, tile.x, tile.y)));
+                                            .map(image -> new TileSource(image, index, tile.y, tile.x)));
     }
 
     /**

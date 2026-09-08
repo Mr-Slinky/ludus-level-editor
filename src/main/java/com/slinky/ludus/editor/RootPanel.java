@@ -20,11 +20,11 @@ import javax.swing.JPanel;
  * occupies the same number of pixels wherever it appears.
  * <p>
  * A press on a swatch arms that tile on the canvas, and a press on the canvas stamps it. Three {@link Stepper}
- * controls in the control bar choose which of the canvas's layers takes that stamp, and how many columns and
- * rows the grid runs to. Every wire runs through this panel, so the canvas keeps no reference to any control.
+ * controls in the control bar choose which of the canvas's layers takes that stamp, and how many rows and
+ * columns the grid runs to. Every wire runs through this panel, so the canvas keeps no reference to any control.
  * <p>
- * The editor opens on a grid of {@value #DEFAULT_COLUMNS} by {@value #DEFAULT_ROWS} cells, which a user steps
- * up towards {@value #MAX_COLUMNS} by {@value #MAX_ROWS}. A step that would drop a placed tile leaves the grid
+ * The editor opens on a grid of {@value #DEFAULT_ROWS} by {@value #DEFAULT_COLUMNS} cells, which a user steps
+ * up towards {@value #MAX_ROWS} by {@value #MAX_COLUMNS}. A step that would drop a placed tile leaves the grid
  * and both captions where they are.
  * <p>
  * Each side occupies a {@link GridBagLayout} containing it as its only child, which lays it out at its preferred
@@ -50,7 +50,7 @@ import javax.swing.JPanel;
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-07
+ *          Last modified: 2026-09-08
  * @since 1.0.0
  */
 public class RootPanel extends JPanel {
@@ -59,12 +59,12 @@ public class RootPanel extends JPanel {
     //                                           Static                                           \\
     // ========================================================================================== \\
     public static final int CELL_SIZE   = 64;
-    public static final int MAX_COLUMNS = 15;
     public static final int MAX_ROWS    = 15;
+    public static final int MAX_COLUMNS = 15;
 
     /** The grid the editor opens on, which a user grows towards the maximum from the control bar. */
-    public static final int DEFAULT_COLUMNS = 10;
     public static final int DEFAULT_ROWS    = 10;
+    public static final int DEFAULT_COLUMNS = 10;
 
     /** The distance in pixels between the window edge and either side, and between the two sides. */
     public static final int PADDING = 12;
@@ -80,8 +80,8 @@ public class RootPanel extends JPanel {
     private final LevelCanvas levelCanvas;
 
     private final Stepper layerStepper;
-    private final Stepper columnStepper = new Stepper("Columns", 1, MAX_COLUMNS, DEFAULT_COLUMNS);
     private final Stepper rowStepper    = new Stepper("Rows",    1, MAX_ROWS,    DEFAULT_ROWS);
+    private final Stepper columnStepper = new Stepper("Columns", 1, MAX_COLUMNS, DEFAULT_COLUMNS);
 
     // ========================================================================================== \\
     //                                       Constructor(s)                                       \\
@@ -95,18 +95,18 @@ public class RootPanel extends JPanel {
      */
     public RootPanel(String... tilesetPaths) {
         this.swatchPanel  = new SwatchPanel(CELL_SIZE, tilesetPaths);
-        this.levelCanvas  = new LevelCanvas(CELL_SIZE, MAX_COLUMNS, MAX_ROWS);
+        this.levelCanvas  = new LevelCanvas(CELL_SIZE, MAX_ROWS, MAX_COLUMNS);
         this.layerStepper = new Stepper("Layer", 0, levelCanvas.getLayerCount() - 1, 0);
 
-        levelCanvas.resizeGrid(DEFAULT_COLUMNS, DEFAULT_ROWS);
+        levelCanvas.resizeGrid(DEFAULT_ROWS, DEFAULT_COLUMNS);
 
         armCanvasOnSelection();
         selectCanvasLayerOnChange();
         resizeCanvasOnChange();
 
         controlBar.addLeading(layerStepper);
-        controlBar.addLeading(columnStepper);
         controlBar.addLeading(rowStepper);
+        controlBar.addLeading(columnStepper);
 
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createLineBorder(WINDOW_EDGE));
@@ -130,12 +130,12 @@ public class RootPanel extends JPanel {
         return layerStepper;
     }
 
-    public Stepper getColumnStepper() {
-        return columnStepper;
-    }
-
     public Stepper getRowStepper() {
         return rowStepper;
+    }
+
+    public Stepper getColumnStepper() {
+        return columnStepper;
     }
 
     public SwatchPanel getSwatchPanel() {
@@ -170,21 +170,21 @@ public class RootPanel extends JPanel {
      * takes both counts at once.
      */
     private void resizeCanvasOnChange() {
-        columnStepper.addValueListener(columns -> applyGridSize(columns, rowStepper.getValue()));
-        rowStepper.addValueListener(rows -> applyGridSize(columnStepper.getValue(), rows));
+        rowStepper.addValueListener(rows -> applyGridSize(rows, columnStepper.getValue()));
+        columnStepper.addValueListener(columns -> applyGridSize(rowStepper.getValue(), columns));
     }
 
     /**
      * Passes a size to the canvas, and returns both steppers to the size that stands where a tile would fall
      * outside the new bounds. The refusal comes back to the user as a step that leaves the caption where it was.
      */
-    private void applyGridSize(int columns, int rows) {
-        if (levelCanvas.canResizeTo(columns, rows)) {
-            levelCanvas.resizeGrid(columns, rows);
+    private void applyGridSize(int rows, int columns) {
+        if (levelCanvas.canResizeTo(rows, columns)) {
+            levelCanvas.resizeGrid(rows, columns);
             revalidate();
         } else {
-            columnStepper.showValue(levelCanvas.getColumns());
             rowStepper.showValue(levelCanvas.getRows());
+            columnStepper.showValue(levelCanvas.getColumns());
         }
     }
 

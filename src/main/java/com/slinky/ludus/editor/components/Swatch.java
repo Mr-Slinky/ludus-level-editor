@@ -47,7 +47,7 @@ import javax.swing.JPanel;
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-06
+ *          Last modified: 2026-09-08
  * @since 1.0.0
  */
 public class Swatch extends JPanel {
@@ -68,8 +68,8 @@ public class Swatch extends JPanel {
     private final BufferedImage image;
     private final int tileWidth;
     private final int tileHeight;
-    private final int columns;
     private final int rows;
+    private final int columns;
 
     private Point selection;
 
@@ -129,10 +129,10 @@ public class Swatch extends JPanel {
         this.image      = image;
         this.tileWidth  = tileWidth;
         this.tileHeight = tileHeight;
-        this.columns    = image.getWidth()  / tileWidth;
         this.rows       = image.getHeight() / tileHeight;
+        this.columns    = image.getWidth()  / tileWidth;
 
-        if (columns < 1 || rows < 1) {
+        if (rows < 1 || columns < 1) {
             throw new IllegalArgumentException(String.format("An image of %d by %d fits no tile of %d by %d", image.getWidth(), image.getHeight(), tileWidth, tileHeight));
         }
 
@@ -156,12 +156,12 @@ public class Swatch extends JPanel {
         return tileHeight;
     }
 
-    public int getColumns() {
-        return columns;
-    }
-
     public int getRows() {
         return rows;
+    }
+
+    public int getColumns() {
+        return columns;
     }
 
     /**
@@ -279,8 +279,8 @@ public class Swatch extends JPanel {
      * the edge selects the outermost row or column.
      */
     private Point findTile(Point point) {
-        var column = clampToRange(point.x / tileWidth,  columns - 1);
         var row    = clampToRange(point.y / tileHeight, rows    - 1);
+        var column = clampToRange(point.x / tileWidth,  columns - 1);
         return new Point(column, row);
     }
 
@@ -312,14 +312,14 @@ public class Swatch extends JPanel {
 
         canvas.setColor(GRID_COLOUR);
 
-        for (var column = 0; column <= columns; column++) {
-            var x = Math.min(column * tileWidth, right);
-            canvas.drawLine(x, 0, x, bottom);
-        }
-
         for (var row = 0; row <= rows; row++) {
             var y = Math.min(row * tileHeight, bottom);
             canvas.drawLine(0, y, right, y);
+        }
+
+        for (var column = 0; column <= columns; column++) {
+            var x = Math.min(column * tileWidth, right);
+            canvas.drawLine(x, 0, x, bottom);
         }
     }
 

@@ -5,10 +5,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The tiles of one layer of a level, addressed by column and row. Every occupied cell stores one
+ * The tiles of one layer of a level, addressed by row and column. Every occupied cell stores one
  * {@link TileSource}, which records where the art was cut from as well as the pixels to draw.
  * <p>
- * Every method below takes a position as a column index followed by a row index. Both indices count from 0, and
+ * Every method below takes a position as a row index followed by a column index. Both indices count from 0, and
  * {@link #contains(int, int)} returns whether a pair addresses a cell of this grid.
  * <p>
  * A caller sets a new size through {@link #resize(int, int)}, which keeps every tile inside both the old bounds
@@ -26,13 +26,13 @@ import java.util.Optional;
  *     var grid  = new TileGrid(10, 10);
  *     var grass = new TileSource(art, 0, 1, 1);
  *
- *     grid.placeTile(3, 8, grass);
+ *     grid.placeTile(8, 3, grass);
  *
  *     grid.getPlacedCount();              // 1
- *     grid.readTile(3, 8).isPresent();    // true
+ *     grid.readTile(8, 3).isPresent();    // true
  *     grid.readTile(0, 0).isPresent();    // false
  *
- *     // [PlacedTile[column=3, row=8, tileset=0, sourceColumn=1, sourceRow=1]]
+ *     // [PlacedTile[row=8, column=3, tileset=0, sourceRow=1, sourceColumn=1]]
  *     grid.readPlacedTiles();
  * }
  * }</pre>
@@ -40,7 +40,7 @@ import java.util.Optional;
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-07
+ *          Last modified: 2026-09-08
  * @since 1.0.0
  */
 public class TileGrid {
@@ -49,8 +49,8 @@ public class TileGrid {
     //                                           Fields                                           \\
     // ========================================================================================== \\
     private TileSource[][] tiles;
-    private int columns;
     private int rows;
+    private int columns;
     private int placed;
 
     // ========================================================================================== \\
@@ -59,35 +59,35 @@ public class TileGrid {
     /**
      * Builds a grid of the given size with every cell free.
      *
-     * @param columns the width in cells
      * @param rows    the height in cells
+     * @param columns the width in cells
      * @throws IllegalArgumentException if either count is zero or negative
      */
-    public TileGrid(int columns, int rows) {
-        requireSize(columns, rows);
+    public TileGrid(int rows, int columns) {
+        requireSize(rows, columns);
 
-        this.columns = columns;
         this.rows    = rows;
+        this.columns = columns;
         this.tiles   = new TileSource[rows][columns];
     }
 
     // ========================================================================================== \\
     //                                          Getters                                           \\
     // ========================================================================================== \\
-    /** Returns the number of columns in this grid. */
-    public int getColumns() {
-        return columns;
-    }
-
     /** Returns the number of rows in this grid. */
     public int getRows() {
         return rows;
     }
 
+    /** Returns the number of columns in this grid. */
+    public int getColumns() {
+        return columns;
+    }
+
     /**
      * Returns the number of cells storing a tile.
      *
-     * @return a count from 0 to {@code getColumns() * getRows()}
+     * @return a count from 0 to {@code getRows() * getColumns()}
      */
     public int getPlacedCount() {
         return placed;
@@ -106,26 +106,26 @@ public class TileGrid {
     }
 
     /**
-     * Returns whether a column and row pair addresses a cell in this grid.
+     * Returns whether a row and column pair addresses a cell in this grid.
      *
-     * @param column the column to test
      * @param row    the row to test
-     * @return {@code true} where {@code column} is at least 0 and below {@link #getColumns()}, and {@code row}
-     *         is at least 0 and below {@link #getRows()}
+     * @param column the column to test
+     * @return {@code true} where {@code row} is at least 0 and below {@link #getRows()}, and {@code column} is
+     *         at least 0 and below {@link #getColumns()}
      */
-    public boolean contains(int column, int row) {
-        return column >= 0 && column < columns && row >= 0 && row < rows;
+    public boolean contains(int row, int column) {
+        return row >= 0 && row < rows && column >= 0 && column < columns;
     }
 
     /**
      * Returns the tile stored in one cell.
      *
-     * @param column the column to read
      * @param row    the row to read
+     * @param column the column to read
      * @return the {@link TileSource} in that cell, and empty for a free cell or for a position outside this grid
      */
-    public Optional<TileSource> readTile(int column, int row) {
-        return contains(column, row) ? Optional.ofNullable(tiles[row][column]) : Optional.empty();
+    public Optional<TileSource> readTile(int row, int column) {
+        return contains(row, column) ? Optional.ofNullable(tiles[row][column]) : Optional.empty();
     }
 
     /**
@@ -143,7 +143,7 @@ public class TileGrid {
 
                 if (tile != null) {
                     var foundTile = new PlacedTile(
-                            column, row, tile.tileset(), tile.sourceColumn(), tile.sourceRow()
+                            row, column, tile.tileset(), tile.sourceRow(), tile.sourceColumn()
                     );
                     found.add(foundTile);
                 }
@@ -157,17 +157,17 @@ public class TileGrid {
      * Counts the tiles standing outside the given bounds, which is the number {@link #resize(int, int)} would
      * drop at that size.
      *
-     * @param columns the width to test, in cells
      * @param rows    the height to test, in cells
-     * @return the number of tiles standing at or beyond that column or that row, and 0 for a size that keeps
+     * @param columns the width to test, in cells
+     * @return the number of tiles standing at or beyond that row or that column, and 0 for a size that keeps
      *         every tile
      */
-    public int countTilesOutside(int columns, int rows) {
+    public int countTilesOutside(int rows, int columns) {
         var outside = 0;
 
         for (var row = 0; row < this.rows; row++) {
             for (var column = 0; column < this.columns; column++) {
-                if ((column >= columns || row >= rows) && tiles[row][column] != null) {
+                if ((row >= rows || column >= columns) && tiles[row][column] != null) {
                     outside++;
                 }
             }
@@ -179,14 +179,14 @@ public class TileGrid {
     /**
      * Stores a tile in one cell, replacing any tile already stored there.
      *
-     * @param column the column to write
      * @param row    the row to write
+     * @param column the column to write
      * @param tile   the tile to store
      * @throws IndexOutOfBoundsException if the position lies outside this grid
      * @throws IllegalArgumentException  if the tile is null
      */
-    public void placeTile(int column, int row, TileSource tile) {
-        requireInside(column, row);
+    public void placeTile(int row, int column, TileSource tile) {
+        requireInside(row, column);
 
         if (tile == null) {
             throw new IllegalArgumentException("A placed tile requires a tile source");
@@ -202,12 +202,12 @@ public class TileGrid {
     /**
      * Frees one cell.
      *
-     * @param column the column to free
      * @param row    the row to free
+     * @param column the column to free
      * @throws IndexOutOfBoundsException if the position lies outside this grid
      */
-    public void removeTile(int column, int row) {
-        requireInside(column, row);
+    public void removeTile(int row, int column) {
+        requireInside(row, column);
 
         if (tiles[row][column] != null) {
             placed--;
@@ -223,15 +223,15 @@ public class TileGrid {
     }
 
     /**
-     * Sets the column and row count, keeping every tile that stands inside both the old bounds and the new ones
+     * Sets the row and column count, keeping every tile that stands inside both the old bounds and the new ones
      * and dropping the rest. A caller that must keep every tile reads {@link #countTilesOutside(int, int)} first.
      *
-     * @param columns the new width in cells
      * @param rows    the new height in cells
+     * @param columns the new width in cells
      * @throws IllegalArgumentException if either count is zero or negative
      */
-    public void resize(int columns, int rows) {
-        requireSize(columns, rows);
+    public void resize(int rows, int columns) {
+        requireSize(rows, columns);
 
         var resized = new TileSource[rows][columns];
         var kept    = 0;
@@ -246,8 +246,8 @@ public class TileGrid {
             }
         }
 
-        this.columns = columns;
         this.rows    = rows;
+        this.columns = columns;
         this.tiles   = resized;
         this.placed  = kept;
     }
@@ -255,15 +255,15 @@ public class TileGrid {
     // ========================================================================================== \\
     //                                       Helper Methods                                       \\
     // ========================================================================================== \\
-    private static void requireSize(int columns, int rows) {
-        if (columns < 1 || rows < 1) {
-            throw new IllegalArgumentException(String.format("A grid size must be positive, given %d by %d", columns, rows));
+    private static void requireSize(int rows, int columns) {
+        if (rows < 1 || columns < 1) {
+            throw new IllegalArgumentException(String.format("A grid size must be positive, given %d rows by %d columns", rows, columns));
         }
     }
 
-    private void requireInside(int column, int row) {
-        if (contains(column, row) == false) {
-            throw new IndexOutOfBoundsException(String.format("A grid of %d by %d has no cell at column %d, row %d", columns, rows, column, row));
+    private void requireInside(int row, int column) {
+        if (!contains(row, column)) {
+            throw new IndexOutOfBoundsException(String.format("A grid of %d rows by %d columns has no cell at row %d, column %d", rows, columns, row, column));
         }
     }
 
@@ -274,13 +274,13 @@ public class TileGrid {
      * One tile placed on a grid, given as its position on the grid, the index of the tileset its art was cut
      * from, and its position inside that tileset.
      *
-     * @param column       the column of the grid this tile occupies
      * @param row          the row of the grid this tile occupies
+     * @param column       the column of the grid this tile occupies
      * @param tileset      the index of the tileset this tile was cut from
-     * @param sourceColumn the column of that tileset this tile was cut from
      * @param sourceRow    the row of that tileset this tile was cut from
+     * @param sourceColumn the column of that tileset this tile was cut from
      */
-    public record PlacedTile(int column, int row, int tileset, int sourceColumn, int sourceRow) {
+    public record PlacedTile(int row, int column, int tileset, int sourceRow, int sourceColumn) {
     }
 
 }
