@@ -66,6 +66,7 @@ public class Swatch extends JPanel {
     // ========================================================================================== \\
     private final List<SelectionListener> listeners = new ArrayList<>();
     private final BufferedImage image;
+    private final String resourcePath;
     private final int tileWidth;
     private final int tileHeight;
     private final int rows;
@@ -94,7 +95,7 @@ public class Swatch extends JPanel {
      * @param tileHeight the tile height in pixels
      */
     public Swatch(String imagePath, int tileWidth, int tileHeight) {
-        this(loadImage(imagePath), tileWidth, tileHeight);
+        this(loadImage(imagePath), resolveResourcePath(imagePath), tileWidth, tileHeight);
     }
 
     /**
@@ -118,6 +119,10 @@ public class Swatch extends JPanel {
      *                                  if the image is smaller than a single tile
      */
     public Swatch(BufferedImage image, int tileWidth, int tileHeight) {
+        this(image, null, tileWidth, tileHeight);
+    }
+
+    private Swatch(BufferedImage image, String resourcePath, int tileWidth, int tileHeight) {
         if (image == null) {
             throw new IllegalArgumentException("A swatch requires an image");
         }
@@ -126,11 +131,12 @@ public class Swatch extends JPanel {
             throw new IllegalArgumentException(String.format("Tile size must be positive, given %d by %d", tileWidth, tileHeight));
         }
 
-        this.image      = image;
-        this.tileWidth  = tileWidth;
-        this.tileHeight = tileHeight;
-        this.rows       = image.getHeight() / tileHeight;
-        this.columns    = image.getWidth()  / tileWidth;
+        this.image        = image;
+        this.resourcePath = resourcePath;
+        this.tileWidth    = tileWidth;
+        this.tileHeight   = tileHeight;
+        this.rows         = image.getHeight() / tileHeight;
+        this.columns      = image.getWidth()  / tileWidth;
 
         if (rows < 1 || columns < 1) {
             throw new IllegalArgumentException(String.format("An image of %d by %d fits no tile of %d by %d", image.getWidth(), image.getHeight(), tileWidth, tileHeight));
@@ -150,6 +156,17 @@ public class Swatch extends JPanel {
     // ========================================================================================== \\
     public int getTileWidth() {
         return tileWidth;
+    }
+
+    /**
+     * Returns the classpath resource that this swatch loaded its image from, starting at the classpath root, so
+     * a swatch built over {@code terrain/tilesets/tilemap_color1.png} answers
+     * {@code /assets/terrain/tilesets/tilemap_color1.png}.
+     *
+     * @return that resource path, and empty for a swatch built over an image already in memory
+     */
+    public Optional<String> getResourcePath() {
+        return Optional.ofNullable(resourcePath);
     }
 
     public int getTileHeight() {
@@ -242,7 +259,7 @@ public class Swatch extends JPanel {
      * @throws UncheckedIOException     if reading the resource fails
      */
     static BufferedImage loadImage(String path) {
-        var resource = ROOT_DIR + normalisePath(path);
+        var resource = resolveResourcePath(path);
 
         try (var source = Swatch.class.getResourceAsStream(resource)) {
             if (source == null) {
@@ -258,6 +275,17 @@ public class Swatch extends JPanel {
         } catch (IOException e) {
             throw new UncheckedIOException(String.format("Failed to read the image at '%s'", resource), e);
         }
+    }
+
+    /**
+     * Places a given path below {@value #ROOT_DIR}, which is both the resource that {@link #loadImage(String)}
+     * reads and the path that {@link #getResourcePath()} answers with.
+     *
+     * @param path the path below {@value #ROOT_DIR}, with or without a leading slash
+     * @return that path from the classpath root
+     */
+    static String resolveResourcePath(String path) {
+        return ROOT_DIR + normalisePath(path);
     }
 
     private static String normalisePath(String path) {
@@ -339,7 +367,7 @@ public class Swatch extends JPanel {
     }
 
     /**
-     * Converts the selected tile from tile coordinates to the pixel rectangle it covers in the source image.
+     * Converts the selected tile from tile coordinates to the pixel rectangle that it covers in the source image.
      */
     private Optional<Rectangle> resolveSelectionBounds() {
         return Optional.ofNullable(selection)
@@ -355,7 +383,7 @@ public class Swatch extends JPanel {
     //                                       Helper Classes                                       \\
     // ========================================================================================== \\
     /**
-     * Receives the tile a {@link Swatch} selects, so a component beside the swatch can follow the selection.
+     * Receives the tile that a {@link Swatch} selects, so a component beside the swatch can follow the selection.
      */
     @FunctionalInterface
     public interface SelectionListener {

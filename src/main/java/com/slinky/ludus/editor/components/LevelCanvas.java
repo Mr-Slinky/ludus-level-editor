@@ -1,5 +1,8 @@
 package com.slinky.ludus.editor.components;
 
+import com.slinky.ludus.editor.data.TileGrid;
+import com.slinky.ludus.editor.data.TileSource;
+
 import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -83,7 +86,7 @@ public class LevelCanvas extends JPanel {
     // ========================================================================================== \\
     //                                           Static                                           \\
     // ========================================================================================== \\
-    /** The asset the water colour is read from, below {@value Swatch#ROOT_DIR}. */
+    /** The asset that the water colour is read from, below {@value Swatch#ROOT_DIR}. */
     public static final String WATER_ASSET = "terrain/tilesets/water-background-color.png";
 
     /** The number of grids a canvas stacks, indexed 0 at the bottom to {@code MAX_LAYERS - 1} at the top. */
@@ -126,8 +129,8 @@ public class LevelCanvas extends JPanel {
      * Builds a canvas of square cells, with the grid starting at its largest.
      *
      * @param cellSize   the cell width and height in pixels
-     * @param maxRows    the tallest the grid can be, in cells
-     * @param maxColumns the widest the grid can be, in cells
+     * @param maxRows    the tallest that the grid can be, in cells
+     * @param maxColumns the widest that the grid can be, in cells
      */
     public LevelCanvas(int cellSize, int maxRows, int maxColumns) {
         this(cellSize, cellSize, maxRows, maxColumns);
@@ -138,8 +141,8 @@ public class LevelCanvas extends JPanel {
      *
      * @param cellWidth  the cell width in pixels
      * @param cellHeight the cell height in pixels
-     * @param maxRows    the tallest the grid can be, in cells
-     * @param maxColumns the widest the grid can be, in cells
+     * @param maxRows    the tallest that the grid can be, in cells
+     * @param maxColumns the widest that the grid can be, in cells
      * @throws IllegalArgumentException if any argument is zero or negative
      */
     public LevelCanvas(int cellWidth, int cellHeight, int maxRows, int maxColumns) {
@@ -169,7 +172,7 @@ public class LevelCanvas extends JPanel {
     //                                          Getters                                           \\
     // ========================================================================================== \\
     /**
-     * Returns the tiles of the layer a press currently stamps onto.
+     * Returns the tiles of the layer that a press currently stamps onto.
      *
      * @return the active layer's grid
      */
@@ -191,7 +194,7 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Returns the index of the layer a press currently stamps onto.
+     * Returns the index of the layer that a press currently stamps onto.
      *
      * @return the active index, from 0 at the bottom to {@code MAX_LAYERS - 1} at the top
      */
@@ -212,7 +215,7 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Returns the colour every cell shows before a tile lands on it.
+     * Returns the colour that every cell shows before a tile lands on it.
      *
      * @return the colour read from {@value #WATER_ASSET}
      */
@@ -237,7 +240,7 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Returns the tile a press will stamp.
+     * Returns the tile that a press will stamp.
      *
      * @return the armed {@link TileSource}, and empty while no tile is armed
      */
@@ -264,7 +267,7 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Chooses the layer every later press stamps onto. The other layers keep their tiles and stay visible, so
+     * Chooses the layer that every later press stamps onto. The other layers keep their tiles and stay visible, so
      * the change alters where a stamp lands and leaves the picture alone.
      *
      * @param layer the index, from 0 at the bottom to {@code MAX_LAYERS - 1} at the top
@@ -316,7 +319,7 @@ public class LevelCanvas extends JPanel {
     public void resizeGrid(int rows, int columns) {
         requireSize(rows, columns);
 
-        if (canResizeTo(rows, columns) == false) {
+        if (!canResizeTo(rows, columns)) {
             throw new IllegalStateException(String.format("A size of %d rows by %d columns would drop %d tiles", rows, columns, countTilesOutside(rows, columns)));
         }
 
@@ -544,7 +547,7 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Returns the grid a press stamps onto, which every method reaching for the current layer goes through.
+     * Returns the grid that a press stamps onto, which every method reaching for the current layer goes through.
      */
     private TileGrid readActiveGrid() {
         return layers.get(activeLayer);

@@ -2,7 +2,8 @@ package com.slinky.ludus.editor.panels;
 
 import com.slinky.ludus.editor.components.ChevronButton;
 import com.slinky.ludus.editor.components.Swatch;
-import com.slinky.ludus.editor.components.TileSource;
+import com.slinky.ludus.editor.data.TileSource;
+import com.slinky.ludus.editor.data.TileSet;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -28,25 +29,26 @@ import javax.swing.SwingConstants;
  * other swatch, so {@link #getSelection()} answers for the whole deck, and a selection made on one tileset
  * survives flipping away and back.
  * <p>
- * {@link #readSelectedTile()} returns that selection as a {@link TileSource}, with the position of the swatch in
- * the deck as its tileset index.
+ * {@link #readSelectedTile()} returns that selection as a {@link TileSource}, together with the {@link TileSet}
+ * that the swatch it was selected on loaded its image from. A tile therefore identifies its own tileset by path,
+ * and a caller writing a level out reads that path from the tile rather than from the position of any swatch.
  * <p>
  * <b>Building a deck from the terrain tilesets</b>
  * <p>
- * A caller builds a deck, flips to the second tileset, and reads back the tile a press selected:
+ * A caller builds a deck, flips to the second tileset, and reads back the tile that a press selected:
  * <pre>{@code
- * var deck = new SwatchPanel(64, firstTilesetPath, secondTilesetPath);
+ * var deck = new SwatchPanel(64, "terrain/tilesets/tilemap_color1.png", "terrain/tilesets/tilemap_color2.png");
  *
  * deck.showNext();
  *
  * // the caption now states the second tileset's file name, followed by "(2 of 2)"
- * deck.getVisibleIndex();                        // 1
+ * deck.getVisibleIndex();                          // 1
  *
- * // after a press on the third tile of the second row of that swatch
- * deck.getSelection();                           // Optional[java.awt.Point[x=2,y=1]]
- * deck.readSelectedTile().get().tileset();       // 1
- * deck.readSelectedTile().get().sourceRow();     // 1
- * deck.readSelectedTile().get().sourceColumn();  // 2
+ * // after a press on the third tile in the second row of that swatch
+ * deck.getSelection();                             // Optional[java.awt.Point[x=2,y=1]]
+ * deck.readSelectedTile().get().tileset().path();  // "/assets/terrain/tilesets/tilemap_color2.png"
+ * deck.readSelectedTile().get().sourceRow();       // 1
+ * deck.readSelectedTile().get().sourceColumn();    // 2
  * }</pre>
  *
  * @author Kheagen Haskins
@@ -77,7 +79,7 @@ public class SwatchPanel extends JPanel {
      * Loads one swatch per image path and shows the first of them.
      *
      * @param tileSize   the tile width and height in pixels, applied to every swatch in the deck
-     * @param imagePaths the paths below {@value Swatch#ROOT_DIR}, in the order the deck presents them
+     * @param imagePaths the paths below {@value Swatch#ROOT_DIR}, in the order that the deck presents them
      * @throws IllegalArgumentException if no path is given
      */
     public SwatchPanel(int tileSize, String... imagePaths) {
@@ -112,7 +114,7 @@ public class SwatchPanel extends JPanel {
     }
 
     /**
-     * Returns the tile selected anywhere in the deck, in the tile coordinates of the swatch it belongs to.
+     * Returns the tile selected anywhere in the deck, in the tile coordinates of the swatch that it belongs to.
      *
      * @return the selected tile, and empty while no swatch in the deck has one
      */
@@ -172,25 +174,29 @@ public class SwatchPanel extends JPanel {
     }
 
     /**
-     * Returns the selected tile, with {@link TileSource#tileset()} set to the position in the deck of the
-     * swatch it was selected on.
+     * Returns the selected tile, with {@link TileSource#tileset()} set to the tileset that the swatch it was
+     * selected on loaded its image from.
      *
-     * @return the selected tile, and empty while no swatch in the deck has a selection
+     * @return the selected tile, and empty where no swatch in the deck has a selection, or where the selected
+     *         swatch was built over an image already in memory, which leaves it without a path to write
      */
     public Optional<TileSource> readSelectedTile() {
-        var found = findSelectedIndex();
+        var found = findSelectedSwatch();
 
         if (found.isEmpty()) {
             return Optional.empty();
         }
 
-        // a swatch position in the deck is the tileset index stored in every tile stamped from it
-        var index  = found.getAsInt();
-        var swatch = swatches.get(index);
+        var swatch  = found.get();
+        var tileset = readTileSet(swatch);
+
+        if (tileset.isEmpty()) {
+            return Optional.empty();
+        }
 
         return swatch.getSelection()
                      .flatMap(tile -> swatch.readSelectedImage()
-                                            .map(image -> new TileSource(image, index, tile.y, tile.x)));
+                                            .map(image -> new TileSource(image, tileset.get(), tile.y, tile.x)));
     }
 
     /**
@@ -250,6 +256,18 @@ public class SwatchPanel extends JPanel {
         bar.add(next, BorderLayout.EAST);
 
         return bar;
+    }
+
+    /**
+     * Describes the tileset that one swatch cuts its tiles from, as the classpath resource that it loaded its
+     * image from and the pixel width of one tile.
+     *
+     * @param swatch the swatch to describe
+     * @return that tileset, and empty for a swatch built over an image already in memory, which leaves it
+     *         without a path to write
+     */
+    private Optional<TileSet> readTileSet(Swatch swatch) {
+        return swatch.getResourcePath().map(path -> new TileSet(path, swatch.getTileWidth()));
     }
 
     private OptionalInt findSelectedIndex() {

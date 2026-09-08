@@ -2,6 +2,8 @@ package com.slinky.ludus.editor;
 
 import com.slinky.ludus.editor.components.LevelCanvas;
 import com.slinky.ludus.editor.components.Stepper;
+import com.slinky.ludus.editor.data.JsonUtil;
+import com.slinky.ludus.editor.data.TileGrid;
 import com.slinky.ludus.editor.panels.ControlBar;
 import com.slinky.ludus.editor.panels.SwatchPanel;
 import com.slinky.ludus.editor.panels.TitleBar;
@@ -9,9 +11,9 @@ import com.slinky.ludus.editor.panels.TitleBar;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridBagLayout;
+import java.util.ArrayList;
 
-import javax.swing.BorderFactory;
-import javax.swing.JPanel;
+import javax.swing.*;
 
 /**
  * The window's content, with a {@link TitleBar} across the top, a {@link ControlBar} across the bottom, and the
@@ -20,21 +22,21 @@ import javax.swing.JPanel;
  * occupies the same number of pixels wherever it appears.
  * <p>
  * A press on a swatch arms that tile on the canvas, and a press on the canvas stamps it. Three {@link Stepper}
- * controls in the control bar choose which of the canvas's layers takes that stamp, and how many rows and
- * columns the grid runs to. Every wire runs through this panel, so the canvas keeps no reference to any control.
+ * controls in the control bar choose the layer that takes that stamp, and how many rows and columns the grid
+ * runs to. Every wire runs through this panel, so the canvas keeps no reference to any control.
  * <p>
  * The editor opens on a grid of {@value #DEFAULT_ROWS} by {@value #DEFAULT_COLUMNS} cells, which a user steps
  * up towards {@value #MAX_ROWS} by {@value #MAX_COLUMNS}. A step that would drop a placed tile leaves the grid
  * and both captions where they are.
  * <p>
  * Each side occupies a {@link GridBagLayout} containing it as its only child, which lays it out at its preferred
- * size and centres it, so growing the window leaves both components centred in the space they were given.
+ * size and centres it, so growing the window leaves both components centred in the space that they were given.
  * <p>
  * A margin of {@value #PADDING} pixels surrounds both sides, and the same distance separates one from the other,
  * so the two of them contribute {@code 3 * PADDING} pixels to the window's width and {@code 2 * PADDING} to its
  * height. The title bar and the control bar each span the full width outside that margin, and a single pixel
- * line runs round the whole panel, which is the edge the window presents once a frame turns its own decoration
- * off.
+ * line runs round the whole panel, which is the edge that the window presents once a frame turns its own
+ * decoration off.
  * <p>
  * <b>Opening the editor over a deck of tilesets</b>
  * <pre>{@code
@@ -62,7 +64,7 @@ public class RootPanel extends JPanel {
     public static final int MAX_ROWS    = 15;
     public static final int MAX_COLUMNS = 15;
 
-    /** The grid the editor opens on, which a user grows towards the maximum from the control bar. */
+    /** The grid that the editor opens on, which a user grows towards the maximum from the control bar. */
     public static final int DEFAULT_ROWS    = 10;
     public static final int DEFAULT_COLUMNS = 10;
 
@@ -90,7 +92,7 @@ public class RootPanel extends JPanel {
      * Builds a deck over the given tilesets and a canvas to stamp them onto, and wires one to the other.
      *
      * @param tilesetPaths the paths below {@value com.slinky.ludus.editor.components.Swatch#ROOT_DIR}, in the
-     *                     order the deck presents them
+     *                     order that the deck presents them
      * @throws IllegalArgumentException if no path is given
      */
     public RootPanel(String... tilesetPaths) {
@@ -107,6 +109,11 @@ public class RootPanel extends JPanel {
         controlBar.addLeading(layerStepper);
         controlBar.addLeading(rowStepper);
         controlBar.addLeading(columnStepper);
+
+        var saveButton = new JButton("Save"); // TODO
+        saveButton.addActionListener(_ -> saveLevel());
+
+        controlBar.addTrailing(saveButton);
 
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createLineBorder(WINDOW_EDGE));
@@ -149,17 +156,55 @@ public class RootPanel extends JPanel {
     // ========================================================================================== \\
     //                                       Helper Methods                                       \\
     // ========================================================================================== \\
+
     /**
-     * Arms the canvas with the tile a press selects, so the canvas learns the selection without knowing which
-     * component produced it.
+     * Writes:
+     * {
+     *   "rows": 10,
+     *   "columns": 10,
+     *   "tilesets": [
+     *     {
+     *       "path": "/assets/terrain/tilesets/tilemap_color1.png",
+     *       "cellSize": 64
+     *     }
+     *   ],
+     *   "layers": [
+     *     {
+     *       "tiles": [
+     *         { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 },
+     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 }
+     *       ]
+     *     },
+     *     {
+     *       "tiles": [
+     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 5, "sourceColumn": 6 }
+     *       ]
+     *     }
+     *   ]
+     * }
+     */
+    private void saveLevel() {
+        var layers = new ArrayList<TileGrid>();
+        for (int i = 0; i < levelCanvas.getLayerCount(); i++) {
+            layers.add(levelCanvas.getLayer(i));
+        }
+
+        var levelJson = JsonUtil.toJson(levelCanvas.getRows(), levelCanvas.getColumns(), layers);
+        System.out.println(JsonUtil.writePrettyString(levelJson));
+        // TODO: write to file
+    }
+
+    /**
+     * Arms the canvas with the tile that a press selects, so the canvas learns the selection without knowing
+     * which component produced it.
      */
     private void armCanvasOnSelection() {
         swatchPanel.addSelectionListener(_ -> swatchPanel.readSelectedTile().ifPresent(levelCanvas::setArmedTile));
     }
 
     /**
-     * Points the canvas at the layer the selector moves to, so the canvas learns which layer a press writes to
-     * without knowing which control chose it.
+     * Points the canvas at the layer that the selector moves to, so the canvas learns which layer a press writes
+     * to without knowing which control chose it.
      */
     private void selectCanvasLayerOnChange() {
         layerStepper.addValueListener(levelCanvas::setActiveLayer);

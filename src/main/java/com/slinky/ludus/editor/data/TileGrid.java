@@ -1,11 +1,11 @@
-package com.slinky.ludus.editor.components;
+package com.slinky.ludus.editor.data;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * The tiles of one layer of a level, addressed by row and column. Every occupied cell stores one
+ * The tiles that make up one layer of a level, addressed by row and column. Every occupied cell stores one
  * {@link TileSource}, which records where the art was cut from as well as the pixels to draw.
  * <p>
  * Every method below takes a position as a row index followed by a column index. Both indices count from 0, and
@@ -15,16 +15,18 @@ import java.util.Optional;
  * and the new ones and drops the rest. {@link #countTilesOutside(int, int)} returns how many tiles a given size
  * would drop, so a caller tests a size before applying it.
  * <p>
- * {@link #readPlacedTiles()} returns one {@link PlacedTile} for each occupied cell. Each of those states the
- * position of one tile on the grid alongside the tileset position its art was cut from.
+ * {@link #readPlacedTiles()} returns one {@link PlacedTile} for each occupied cell. Each of those states where
+ * one tile stands on the grid, the {@link TileSet} that its art was cut from, and the cell that it occupies
+ * inside that tileset.
  * <p>
  * <b>Stamping a tile and reading the layer back</b>
  * <p>
  * A caller places one tile on a new grid, then reads the cells back:
  * <pre>{@code
  * void stampGrass(BufferedImage art) {
- *     var grid  = new TileGrid(10, 10);
- *     var grass = new TileSource(art, 0, 1, 1);
+ *     var grid    = new TileGrid(10, 10);
+ *     var tileset = new TileSet("/assets/terrain/tilesets/tilemap_color1.png", 64);
+ *     var grass   = new TileSource(art, tileset, 1, 1);
  *
  *     grid.placeTile(8, 3, grass);
  *
@@ -32,8 +34,13 @@ import java.util.Optional;
  *     grid.readTile(8, 3).isPresent();    // true
  *     grid.readTile(0, 0).isPresent();    // false
  *
- *     // [PlacedTile[row=8, column=3, tileset=0, sourceRow=1, sourceColumn=1]]
- *     grid.readPlacedTiles();
+ *     var placed = grid.readPlacedTiles().getFirst();
+ *
+ *     placed.row();                       // 8
+ *     placed.column();                    // 3
+ *     placed.tileset().path();            // "/assets/terrain/tilesets/tilemap_color1.png"
+ *     placed.sourceRow();                 // 1
+ *     placed.sourceColumn();              // 1
  * }
  * }</pre>
  *
@@ -154,8 +161,8 @@ public class TileGrid {
     }
 
     /**
-     * Counts the tiles standing outside the given bounds, which is the number {@link #resize(int, int)} would
-     * drop at that size.
+     * Counts the tiles standing outside the given bounds, which is the number that {@link #resize(int, int)}
+     * would drop at that size.
      *
      * @param rows    the height to test, in cells
      * @param columns the width to test, in cells
@@ -271,16 +278,16 @@ public class TileGrid {
     //                                       Helper Classes                                       \\
     // ========================================================================================== \\
     /**
-     * One tile placed on a grid, given as its position on the grid, the index of the tileset its art was cut
-     * from, and its position inside that tileset.
+     * One tile placed on a grid, given as its position on the grid, the tileset that its art was cut from, and
+     * its position inside that tileset.
      *
-     * @param row          the row of the grid this tile occupies
-     * @param column       the column of the grid this tile occupies
-     * @param tileset      the index of the tileset this tile was cut from
-     * @param sourceRow    the row of that tileset this tile was cut from
-     * @param sourceColumn the column of that tileset this tile was cut from
+     * @param row          the row of the grid that this tile occupies
+     * @param column       the column of the grid that this tile occupies
+     * @param tileset      the tileset that this tile was cut from
+     * @param sourceRow    the row of that tileset that this tile was cut from
+     * @param sourceColumn the column of that tileset that this tile was cut from
      */
-    public record PlacedTile(int row, int column, int tileset, int sourceRow, int sourceColumn) {
+    public record PlacedTile(int row, int column, TileSet tileset, int sourceRow, int sourceColumn) {
     }
 
 }
