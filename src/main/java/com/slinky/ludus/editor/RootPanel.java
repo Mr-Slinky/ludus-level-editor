@@ -2,8 +2,6 @@ package com.slinky.ludus.editor;
 
 import com.slinky.ludus.editor.components.LevelCanvas;
 import com.slinky.ludus.editor.components.Stepper;
-import com.slinky.ludus.editor.data.JsonUtil;
-import com.slinky.ludus.editor.data.TileGrid;
 import com.slinky.ludus.editor.panels.ControlBar;
 import com.slinky.ludus.editor.panels.SwatchPanel;
 import com.slinky.ludus.editor.panels.TitleBar;
@@ -11,7 +9,7 @@ import com.slinky.ludus.editor.panels.TitleBar;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridBagLayout;
-import java.util.ArrayList;
+import java.nio.file.Path;
 
 import javax.swing.*;
 
@@ -158,18 +156,11 @@ public class RootPanel extends JPanel {
     // ========================================================================================== \\
 
     /**
-     * Collects every layer of the canvas, bottom first, and prints the level as JSON.
-     * {@link JsonUtil#toJson(int, int, java.util.Collection)} states the format that it prints.
+     * Hands the canvas to {@link LevelWriter#saveLevel(LevelCanvas, Path)}, which converts it and writes the
+     * result. The save button in the control bar calls this.
      */
     private void saveLevel() {
-        var layers = new ArrayList<TileGrid>();
-        for (int i = 0; i < levelCanvas.getLayerCount(); i++) {
-            layers.add(levelCanvas.getLayer(i));
-        }
-
-        var levelJson = JsonUtil.toJson(levelCanvas.getRows(), levelCanvas.getColumns(), layers);
-        System.out.println(JsonUtil.writePrettyString(levelJson));
-        // TODO: write to file
+        LevelWriter.saveLevel(levelCanvas, Path.of("newLevel.json"));
     }
 
     /**
