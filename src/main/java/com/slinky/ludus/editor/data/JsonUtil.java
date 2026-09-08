@@ -54,6 +54,9 @@ public class JsonUtil {
      *       "tiles": [
      *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 5, "sourceColumn": 6 }
      *       ]
+     *     },
+     *     {
+     *       "tiles": []
      *     }
      *   ]
      * }
@@ -62,10 +65,15 @@ public class JsonUtil {
      * The {@code tilesets} array is collected from the tiles that the layers place, so it lists exactly the
      * tilesets that the level draws from, ordered by path. Each tile's {@code tileset} property is its
      * tileset's position in that array.
+     * <p>
+     * The {@code layers} array runs one entry per layer given, in the order that they paint, bottom first. A
+     * layer with every cell free writes an entry whose {@code tiles} array is empty, as the third entry above
+     * does. Those entries are what keep a position in this array equal to the layer index that a user stamped
+     * on, so a reader resolves layer 3 of a level as the fourth entry whatever the three below it contain.
      *
      * @param rows   the height of the level in cells
      * @param cols   the width of the level in cells
-     * @param layers the layers of the level, bottom first
+     * @param layers every layer of the canvas, bottom first
      * @return the level as a JSON object
      */
     public static JsonObject toJson(int rows, int cols, Collection<TileGrid> layers) {

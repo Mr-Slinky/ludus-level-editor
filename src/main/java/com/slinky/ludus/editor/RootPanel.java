@@ -158,30 +158,8 @@ public class RootPanel extends JPanel {
     // ========================================================================================== \\
 
     /**
-     * Writes:
-     * {
-     *   "rows": 10,
-     *   "columns": 10,
-     *   "tilesets": [
-     *     {
-     *       "path": "/assets/terrain/tilesets/tilemap_color1.png",
-     *       "cellSize": 64
-     *     }
-     *   ],
-     *   "layers": [
-     *     {
-     *       "tiles": [
-     *         { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 },
-     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 }
-     *       ]
-     *     },
-     *     {
-     *       "tiles": [
-     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 5, "sourceColumn": 6 }
-     *       ]
-     *     }
-     *   ]
-     * }
+     * Collects every layer of the canvas, bottom first, and prints the level as JSON.
+     * {@link JsonUtil#toJson(int, int, java.util.Collection)} states the format that it prints.
      */
     private void saveLevel() {
         var layers = new ArrayList<TileGrid>();
