@@ -16,35 +16,36 @@ import java.util.Optional;
 import javax.swing.JPanel;
 
 /**
- * A stack of {@value #MAX_LAYERS} grids of cells the same size as the tiles in a {@link Swatch}, onto which a
- * caller stamps tiles. Every layer shares one row and column count, and the panel takes exactly the pixel size
- * of that grid, as both its preferred and its minimum size. A layout with room to spare therefore centres the
- * canvas, and a layout with less room than the grid needs clips it, which keeps the grid on screen at whatever
- * size the window happens to be.
+ * A stack of {@value #MAX_LAYERS} grids, one per layer, that a caller stamps tiles onto. Each cell is the size
+ * of one tile in a {@link Swatch}, and every layer shares one row and column count.
+ * <p>
+ * The panel takes the pixel size of the grid as both its preferred and its minimum size. A layout with room to
+ * spare therefore centres the canvas, and a layout with less room clips it, so the grid stays on screen at
+ * whatever size the window happens to be.
  * <p>
  * The layers paint in index order, so layer 0 goes down first and each layer after it draws over the one below.
- * A tile's transparent pixels let the layers beneath show through, which is what puts the overhanging face of a
- * cliff over the ground behind it. Every layer stays fully visible at every moment, so a level appears while a
- * user edits it exactly as it will appear once it is finished.
+ * A tile's transparent pixels let the layers beneath show through, which puts the overhanging face of a cliff
+ * over the ground behind it. Every layer stays visible while a user edits, so a level appears exactly as it
+ * will appear once it is finished.
  * <p>
  * One layer at a time takes a stamp. {@link #setActiveLayer(int)} chooses it, {@link #getActiveLayer()} reports
  * it, and {@link #getGrid()} returns its tiles. A press writes to that layer alone and leaves the rest as they
  * stand.
  * <p>
- * Every cell starts as water, drawn in the colour read from {@value #WATER_ASSET} beneath layer 0, and a stamped
- * tile covers that colour. A level therefore begins as an expanse of water that a user builds land into, and
- * {@link #getWaterColour()} returns the colour a caller writing the level out needs for the cells nothing was
- * stamped onto.
+ * Every cell starts as water, drawn beneath layer 0 in the colour read from {@value #WATER_ASSET}, and a stamped
+ * tile covers that colour. A level therefore begins as an expanse of water that a user builds land into.
+ * {@link #getWaterColour()} returns that colour, which a caller writing the level out uses for every cell still
+ * showing it.
  * <p>
  * A caller arms a {@link TileSource} through {@link #setArmedTile(TileSource)}, and a press then writes that
  * tile into the cell under the pointer. The armed tile stays armed, so one tile can be stamped as many times as
  * a user likes. While a tile is armed, the cell under the pointer shows it at reduced opacity inside an outline,
- * so the destination of a press is visible before the press.
+ * so a user sees where a press will land before making it.
  * <p>
  * {@link TileGrid} stores the placed tiles of one layer. A resize goes through {@link #resizeGrid(int, int)},
  * which sets every layer at once. Growing keeps every tile where it is, and shrinking keeps the tiles that stay
- * inside the new bounds. A shrink that would drop a tile is refused, so a resize leaves no tile stranded outside
- * the grid, and {@link #canResizeTo(int, int)} answers in advance which of those a given size would be.
+ * inside the new bounds. A shrink that would drop a tile is refused, so every tile stays inside the grid, and
+ * {@link #canResizeTo(int, int)} reports in advance whether a given size is accepted.
  * <p>
  * <b>Stamping a cliff face over the ground behind it</b>
  * <p>
