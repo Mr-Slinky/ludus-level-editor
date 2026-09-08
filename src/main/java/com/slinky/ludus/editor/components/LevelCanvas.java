@@ -8,7 +8,6 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -37,10 +36,10 @@ import javax.swing.JPanel;
  * {@link #getWaterColour()} returns the colour a caller writing the level out needs for the cells nothing was
  * stamped onto.
  * <p>
- * A caller arms a tile through {@link #setArmedTile(BufferedImage)}, and a press then writes that tile into the
- * cell under the pointer. The armed tile stays armed, so one tile can be stamped as many times as a user likes.
- * While a tile is armed, the cell under the pointer shows that tile at reduced opacity inside an outline, so the
- * destination of a press is visible before the press.
+ * A caller arms a {@link TileSource} through {@link #setArmedTile(TileSource)}, and a press then writes that
+ * tile into the cell under the pointer. The armed tile stays armed, so one tile can be stamped as many times as
+ * a user likes. While a tile is armed, the cell under the pointer shows it at reduced opacity inside an outline,
+ * so the destination of a press is visible before the press.
  * <p>
  * {@link TileGrid} stores the placed tiles of one layer. A resize goes through {@link #resizeGrid(int, int)},
  * which sets every layer at once. Growing keeps every tile where it is, and shrinking keeps the tiles that stay
@@ -48,21 +47,28 @@ import javax.swing.JPanel;
  * the grid, and {@link #canResizeTo(int, int)} answers in advance which of those a given size would be.
  * <p>
  * <b>Stamping a cliff face over the ground behind it</b>
+ * <p>
+ * A caller arms one tile, presses twice, and reads back where the art of the first press came from:
  * <pre>{@code
- * var canvas = new LevelCanvas(64, 15, 15);
+ * void stampCliff(BufferedImage art) {
+ *     var canvas = new LevelCanvas(64, 15, 15);
  *
- * // 15 columns of 64 pixels by 15 rows of 64 pixels
- * canvas.getPreferredSize();          // java.awt.Dimension[width=960,height=960]
+ *     // 15 columns of 64 pixels by 15 rows of 64 pixels
+ *     canvas.getPreferredSize();     // java.awt.Dimension[width=960,height=960]
  *
- * swatch.readSelectedImage().ifPresent(canvas::setArmedTile);
+ *     canvas.setArmedTile(new TileSource(art, 0, 1, 1));
  *
- * // a press at (300, 140) writes the armed tile into column 4, row 2 of layer 0
- * canvas.getGrid().readTile(4, 2);    // the armed image
+ *     // a press at (300, 140) writes the armed tile into column 4, row 2 of layer 0
+ *     var stamped = canvas.getGrid().readTile(4, 2);
  *
- * canvas.setActiveLayer(1);
+ *     stamped.get().tileset();       // 0
+ *     stamped.get().sourceColumn();  // 1
  *
- * // a press on the same cell now writes to layer 1, and layer 0 keeps its tile
- * canvas.getLayer(0).readTile(4, 2);  // still the first image
+ *     canvas.setActiveLayer(1);
+ *
+ *     // a press on the same cell now writes to layer 1, and layer 0 keeps its tile
+ *     canvas.getLayer(0).readTile(4, 2).isPresent();  // true
+ * }
  * }</pre>
  *
  * @author Kheagen Haskins
@@ -108,9 +114,9 @@ public class LevelCanvas extends JPanel {
     private final int maxColumns;
     private final int maxRows;
 
-    private int           activeLayer;
-    private BufferedImage armedTile;
-    private Point         hovered;
+    private int        activeLayer;
+    private TileSource armedTile;
+    private Point      hovered;
 
     // ========================================================================================== \\
     //                                       Constructor(s)                                       \\
@@ -232,9 +238,9 @@ public class LevelCanvas extends JPanel {
     /**
      * Returns the tile a press will stamp.
      *
-     * @return the armed tile, and empty while no tile is armed
+     * @return the armed {@link TileSource}, and empty while no tile is armed
      */
-    public Optional<BufferedImage> getArmedTile() {
+    public Optional<TileSource> getArmedTile() {
         return Optional.ofNullable(armedTile);
     }
 
@@ -244,12 +250,12 @@ public class LevelCanvas extends JPanel {
     /**
      * Arms a tile, which every later press stamps into the cell under the pointer until another tile replaces it.
      *
-     * @param tile the image to stamp
+     * @param tile the tile to stamp
      * @throws IllegalArgumentException if the tile is null
      */
-    public void setArmedTile(BufferedImage tile) {
+    public void setArmedTile(TileSource tile) {
         if (tile == null) {
-            throw new IllegalArgumentException("An armed tile requires an image");
+            throw new IllegalArgumentException("An armed tile requires a tile source");
         }
 
         armedTile = tile;
@@ -456,7 +462,7 @@ public class LevelCanvas extends JPanel {
                 var y = row * cellHeight;
 
                 layer.readTile(column, row)
-                     .ifPresent(tile -> canvas.drawImage(tile, x, y, cellWidth, cellHeight, null));
+                     .ifPresent(tile -> canvas.drawImage(tile.image(), x, y, cellWidth, cellHeight, null));
             }
         }
     }
@@ -492,7 +498,7 @@ public class LevelCanvas extends JPanel {
 
         var ghost = (Graphics2D) canvas.create();
         ghost.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, HOVER_ALPHA));
-        ghost.drawImage(armedTile, x, y, cellWidth, cellHeight, null);
+        ghost.drawImage(armedTile.image(), x, y, cellWidth, cellHeight, null);
         ghost.dispose();
 
         canvas.setColor(HOVER_OUTLINE);
@@ -546,161 +552,6 @@ public class LevelCanvas extends JPanel {
     private void requireLayer(int layer) {
         if (layer < 0 || layer >= layers.size()) {
             throw new IndexOutOfBoundsException(String.format("A stack of %d layers has no layer %d", layers.size(), layer));
-        }
-    }
-
-    // ========================================================================================== \\
-    //                                       Helper Classes                                       \\
-    // ========================================================================================== \\
-    /**
-     * The tiles of one layer, addressed by column and row. A grid takes a new size at any time and keeps the
-     * tiles the new bounds still contain, so growing a level costs nothing and shrinking one costs the tiles
-     * standing in the cells that go.
-     */
-    public class TileGrid {
-
-        private BufferedImage[][] tiles;
-        private int columns;
-        private int rows;
-        private int placed;
-
-        private TileGrid(int columns, int rows) {
-            this.columns = columns;
-            this.rows    = rows;
-            this.tiles   = new BufferedImage[rows][columns];
-        }
-
-        public int getColumns() {
-            return columns;
-        }
-
-        public int getRows() {
-            return rows;
-        }
-
-        /**
-         * Counts the cells holding a tile.
-         *
-         * @return the number of tiles placed, from zero to the cell count
-         */
-        public int getPlacedCount() {
-            return placed;
-        }
-
-        /**
-         * Reports whether every cell is free.
-         *
-         * @return {@code true} while no tile has been placed
-         */
-        public boolean isEmpty() {
-            return placed == 0;
-        }
-
-        /**
-         * Reports whether a column and row pair addresses a cell in this grid.
-         *
-         * @param column the column to test
-         * @param row    the row to test
-         * @return {@code true} while both fall inside the grid
-         */
-        public boolean contains(int column, int row) {
-            return column >= 0 && column < columns && row >= 0 && row < rows;
-        }
-
-        /**
-         * Returns the tile in one cell.
-         *
-         * @param column the column to read
-         * @param row    the row to read
-         * @return the tile in that cell, and empty for a free cell or a pair outside the grid
-         */
-        public Optional<BufferedImage> readTile(int column, int row) {
-            return contains(column, row) ? Optional.ofNullable(tiles[row][column]) : Optional.empty();
-        }
-
-        /**
-         * Writes a tile into one cell, replacing whatever that cell held.
-         *
-         * @param column the column to write
-         * @param row    the row to write
-         * @param tile   the image to store
-         * @throws IndexOutOfBoundsException if the pair falls outside the grid
-         * @throws IllegalArgumentException  if the tile is null
-         */
-        public void placeTile(int column, int row, BufferedImage tile) {
-            requireInside(column, row);
-
-            if (tile == null) {
-                throw new IllegalArgumentException("A placed tile requires an image");
-            }
-
-            if (tiles[row][column] == null) {
-                placed++;
-            }
-
-            tiles[row][column] = tile;
-        }
-
-        /**
-         * Frees one cell.
-         *
-         * @param column the column to free
-         * @param row    the row to free
-         * @throws IndexOutOfBoundsException if the pair falls outside the grid
-         */
-        public void removeTile(int column, int row) {
-            requireInside(column, row);
-
-            if (tiles[row][column] != null) {
-                placed--;
-            }
-
-            tiles[row][column] = null;
-        }
-
-        /**
-         * Frees every cell, which returns the grid to a state that accepts a new size.
-         */
-        public void clear() {
-            tiles  = new BufferedImage[rows][columns];
-            placed = 0;
-        }
-
-        /**
-         * Sets the row and column count, keeping every tile that stands inside both the old bounds and the new
-         * ones. A tile outside the new bounds is dropped, so a caller shrinking a grid checks
-         * {@link LevelCanvas#canResizeTo(int, int)} first.
-         *
-         * @param columns the new width in cells
-         * @param rows    the new height in cells
-         * @throws IllegalArgumentException if either count falls outside one cell to the maximum
-         */
-        public void resize(int columns, int rows) {
-            requireSize(columns, rows);
-
-            var resized = new BufferedImage[rows][columns];
-            var kept    = 0;
-
-            for (var row = 0; row < Math.min(rows, this.rows); row++) {
-                for (var column = 0; column < Math.min(columns, this.columns); column++) {
-                    resized[row][column] = tiles[row][column];
-
-                    if (resized[row][column] != null) {
-                        kept++;
-                    }
-                }
-            }
-
-            this.columns = columns;
-            this.rows    = rows;
-            this.tiles   = resized;
-            this.placed  = kept;
-        }
-
-        private void requireInside(int column, int row) {
-            if (contains(column, row) == false) {
-                throw new IndexOutOfBoundsException(String.format("A grid of %d by %d has no cell at column %d, row %d", columns, rows, column, row));
-            }
         }
     }
 

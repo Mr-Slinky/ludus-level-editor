@@ -154,7 +154,7 @@ public class RootPanel extends JPanel {
      * component produced it.
      */
     private void armCanvasOnSelection() {
-        swatchPanel.addSelectionListener(selection -> swatchPanel.readSelectedImage().ifPresent(levelCanvas::setArmedTile));
+        swatchPanel.addSelectionListener(_ -> swatchPanel.readSelectedTile().ifPresent(levelCanvas::setArmedTile));
     }
 
     /**

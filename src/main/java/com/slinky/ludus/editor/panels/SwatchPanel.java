@@ -2,6 +2,7 @@ package com.slinky.ludus.editor.panels;
 
 import com.slinky.ludus.editor.components.ChevronButton;
 import com.slinky.ludus.editor.components.Swatch;
+import com.slinky.ludus.editor.components.TileSource;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -10,6 +11,8 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.stream.IntStream;
 
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
@@ -18,27 +21,37 @@ import javax.swing.SwingConstants;
 
 /**
  * Stacks several {@link Swatch} instances into a deck and shows one at a time, with a back and a forward button
- * either side of a caption naming the visible tileset. Flipping past either end wraps round to the other.
+ * either side of a caption stating the name of the visible tileset. {@link #showNext()} past the last swatch
+ * shows the first, and {@link #showPrevious()} before the first shows the last.
  * <p>
  * One tile stays selected across the whole deck. A press on the visible swatch clears the selection on every
- * other swatch, so {@link #getSelection()} answers for the deck rather than for a single tileset, and a
- * selection made on one tileset survives flipping away and back.
+ * other swatch, so {@link #getSelection()} answers for the whole deck, and a selection made on one tileset
+ * survives flipping away and back.
+ * <p>
+ * {@link #readSelectedTile()} returns that selection as a {@link TileSource}, with the position of the swatch in
+ * the deck as its tileset index.
  * <p>
  * <b>Building a deck from the terrain tilesets</b>
+ * <p>
+ * A caller builds a deck, flips to the second tileset, and reads back the tile a press selected:
  * <pre>{@code
  * var deck = new SwatchPanel(64, firstTilesetPath, secondTilesetPath);
  *
- * deck.addSelectionListener(selection -> System.out.println(selection));
  * deck.showNext();
  *
- * // the caption states the second tileset's file name, followed by "(2 of 2)"
- * // deck.getSelection() stays Optional.empty until a press lands on a swatch
+ * // the caption now states the second tileset's file name, followed by "(2 of 2)"
+ * deck.getVisibleIndex();                        // 1
+ *
+ * // after a press on the third tile of the second row of that swatch
+ * deck.getSelection();                           // Optional[java.awt.Point[x=2,y=1]]
+ * deck.readSelectedTile().get().tileset();       // 1
+ * deck.readSelectedTile().get().sourceColumn();  // 2
  * }</pre>
  *
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-06
+ *          Last modified: 2026-09-07
  * @since 1.0.0
  */
 public class SwatchPanel extends JPanel {
@@ -109,7 +122,7 @@ public class SwatchPanel extends JPanel {
     /**
      * Reports whether any swatch in the deck has a selected tile.
      *
-     * @return {@code true} while one tileset in the deck has at least one tile selected
+     * @return {@code true} where {@link #getSelection()} returns a tile
      */
     public boolean hasSelection() {
         return findSelectedSwatch().isPresent();
@@ -158,6 +171,28 @@ public class SwatchPanel extends JPanel {
     }
 
     /**
+     * Returns the selected tile, with {@link TileSource#tileset()} set to the position in the deck of the
+     * swatch it was selected on.
+     *
+     * @return the selected tile, and empty while no swatch in the deck has a selection
+     */
+    public Optional<TileSource> readSelectedTile() {
+        var found = findSelectedIndex();
+
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+
+        // a swatch position in the deck is the tileset index stored in every tile stamped from it
+        var index  = found.getAsInt();
+        var swatch = swatches.get(index);
+
+        return swatch.getSelection()
+                     .flatMap(tile -> swatch.readSelectedImage()
+                                            .map(image -> new TileSource(image, index, tile.x, tile.y)));
+    }
+
+    /**
      * Empties the selection on every swatch in the deck, leaving listeners unnotified.
      */
     public void clearSelection() {
@@ -186,7 +221,7 @@ public class SwatchPanel extends JPanel {
 
     /**
      * Clears every swatch other than the one just pressed, so one tile stays selected across the deck, then
-     * passes the selection on. The clears stay silent, which keeps them out of this method.
+     * passes the selection on. Each clear stays silent, so none of them re-enters this method.
      */
     private void handleSwatchSelection(Swatch source, Point selection) {
         for (var swatch : swatches) {
@@ -216,10 +251,16 @@ public class SwatchPanel extends JPanel {
         return bar;
     }
 
+    private OptionalInt findSelectedIndex() {
+        return IntStream.range(0, swatches.size())
+                        .filter(index -> swatches.get(index).hasSelection())
+                        .findFirst();
+    }
+
     private Optional<Swatch> findSelectedSwatch() {
-        return swatches.stream()
-                       .filter(Swatch::hasSelection)
-                       .findFirst();
+        var found = findSelectedIndex();
+
+        return found.isPresent() ? Optional.of(swatches.get(found.getAsInt())) : Optional.empty();
     }
 
     /**
