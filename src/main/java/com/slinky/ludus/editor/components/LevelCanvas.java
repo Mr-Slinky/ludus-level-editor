@@ -1,5 +1,6 @@
 package com.slinky.ludus.editor.components;
 
+import com.slinky.ludus.editor.data.Palette;
 import com.slinky.ludus.editor.data.TileGrid;
 import com.slinky.ludus.editor.data.TileSource;
 
@@ -92,9 +93,9 @@ public class LevelCanvas extends JPanel {
     /** The number of grids a canvas stacks, indexed 0 at the bottom to {@code MAX_LAYERS - 1} at the top. */
     public static final int MAX_LAYERS = 6;
 
-    private static final Color BACKGROUND    = new Color(247, 247, 249);
-    private static final Color GRID_COLOUR   = new Color(0, 0, 0, 55);
-    private static final Color HOVER_OUTLINE = new Color(255, 214, 0);
+    private static final Color BACKGROUND    = Palette.getActive().getDark();
+    private static final Color GRID_COLOUR   = Palette.getActive().getGridLine();
+    private static final Color HOVER_OUTLINE = Palette.getActive().getAccent1();
 
     private static final float HOVER_ALPHA = 0.45f;
 

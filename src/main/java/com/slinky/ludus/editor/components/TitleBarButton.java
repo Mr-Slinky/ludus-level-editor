@@ -1,5 +1,7 @@
 package com.slinky.ludus.editor.components;
 
+import com.slinky.ludus.editor.data.Palette;
+
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -48,11 +50,11 @@ public class TitleBarButton extends JButton {
     private static final int DEFAULT_WIDTH  = 46;
     private static final int DEFAULT_HEIGHT = 32;
 
-    private static final Color GLYPH           = new Color(58, 64, 72);
-    private static final Color GLYPH_DISABLED  = new Color(58, 64, 72, 70);
+    private static final Color GLYPH           = Palette.getActive().getLight();
+    private static final Color GLYPH_DISABLED  = Palette.withAlpha(Palette.getActive().getLight(), 70);
     private static final Color GLYPH_ON_CLOSE  = Color.WHITE;
-    private static final Color FILL_HOVER      = new Color(0, 0, 0, 26);
-    private static final Color FILL_PRESSED    = new Color(0, 0, 0, 54);
+    private static final Color FILL_HOVER      = Palette.withAlpha(Palette.getActive().getLight(), 26);
+    private static final Color FILL_PRESSED    = Palette.withAlpha(Palette.getActive().getLight(), 50);
     private static final Color CLOSE_HOVER     = new Color(232, 17, 35);
     private static final Color CLOSE_PRESSED   = new Color(190, 20, 34);
 

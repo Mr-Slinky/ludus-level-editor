@@ -1,6 +1,8 @@
 package com.slinky.ludus.editor.components;
 
 import java.awt.BasicStroke;
+import com.slinky.ludus.editor.data.Palette;
+
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
@@ -45,10 +47,10 @@ public class ChevronButton extends JButton {
     // ========================================================================================== \\
     private static final int DEFAULT_DIAMETER = 28;
 
-    private static final Color CHEVRON          = new Color(58, 64, 72);
-    private static final Color CHEVRON_DISABLED = new Color(58, 64, 72, 70);
-    private static final Color HALO_HOVER       = new Color(0, 0, 0, 26);
-    private static final Color HALO_PRESSED     = new Color(0, 0, 0, 54);
+    private static final Color CHEVRON          = Palette.getActive().getLight();
+    private static final Color CHEVRON_DISABLED = Palette.withAlpha(Palette.getActive().getLight(), 70);
+    private static final Color HALO_HOVER       = Palette.withAlpha(Palette.getActive().getAccent2(), 45);
+    private static final Color HALO_PRESSED     = Palette.withAlpha(Palette.getActive().getAccent2(), 85);
 
     private static final float CHEVRON_DEPTH_RATIO = 0.24f;
     private static final float CHEVRON_SPAN_RATIO  = 0.42f;

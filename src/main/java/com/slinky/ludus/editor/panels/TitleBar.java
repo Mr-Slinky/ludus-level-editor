@@ -2,6 +2,8 @@ package com.slinky.ludus.editor.panels;
 
 import com.slinky.ludus.editor.components.TitleBarButton;
 
+import com.slinky.ludus.editor.data.Palette;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -58,8 +60,8 @@ public class TitleBar extends JPanel {
     // ========================================================================================== \\
     //                                           Static                                           \\
     // ========================================================================================== \\
-    private static final Color BACKGROUND = new Color(243, 243, 243);
-    private static final Color SEPARATOR  = new Color(0, 0, 0, 30);
+    private static final Color BACKGROUND = Palette.getActive().getChrome();
+    private static final Color SEPARATOR  = Palette.getActive().getSeparator();
 
     // ========================================================================================== \\
     //                                           Fields                                           \\

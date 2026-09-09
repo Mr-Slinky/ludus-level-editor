@@ -2,9 +2,11 @@ package com.slinky.ludus.editor.panels;
 
 import com.slinky.ludus.editor.components.ChevronButton;
 import com.slinky.ludus.editor.components.Swatch;
+import com.slinky.ludus.editor.data.Palette;
 import com.slinky.ludus.editor.data.TileSource;
 import com.slinky.ludus.editor.data.TileSet;
 
+import java.awt.Color;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Point;
@@ -60,6 +62,11 @@ import javax.swing.SwingConstants;
 public class SwatchPanel extends JPanel {
 
     // ========================================================================================== \\
+    //                                           Static                                           \\
+    // ========================================================================================== \\
+    private static final Color GROUND = Palette.getActive().getDark();
+
+    // ========================================================================================== \\
     //                                           Fields                                           \\
     // ========================================================================================== \\
     private final List<Swatch.SelectionListener> listeners = new ArrayList<>();
@@ -91,7 +98,11 @@ public class SwatchPanel extends JPanel {
             addSwatch(new Swatch(path, tileSize), deriveName(path));
         }
 
+        cards.setBackground(GROUND);
+        caption.setForeground(Palette.getActive().getLight());
+
         setLayout(new BorderLayout());
+        setBackground(GROUND);
         add(buildNavigationBar(), BorderLayout.NORTH);
         add(cards, BorderLayout.CENTER);
 
@@ -250,6 +261,7 @@ public class SwatchPanel extends JPanel {
         next.addActionListener(_ -> showNext());
 
         var bar = new JPanel(new BorderLayout());
+        bar.setBackground(GROUND);
         bar.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
         bar.add(previous, BorderLayout.WEST);
         bar.add(caption, BorderLayout.CENTER);

@@ -1,5 +1,8 @@
 package com.slinky.ludus.editor.components;
 
+import com.slinky.ludus.editor.data.Palette;
+
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -57,9 +60,13 @@ public class Swatch extends JPanel {
     // ========================================================================================== \\
     public static final String ROOT_DIR = "/assets";
 
-    private static final Color GRID_COLOUR       = new Color(0, 0, 0, 90);
-    private static final Color SELECTION_FILL    = new Color(255, 255, 255, 70);
-    private static final Color SELECTION_OUTLINE = new Color(255, 214, 0);
+    private static final Color BACKGROUND        = Palette.getActive().getDark();
+    private static final Color GRID_COLOUR       = Palette.getActive().getGridLine();
+    private static final Color SELECTION_FILL    = Palette.withAlpha(Palette.getActive().getAccent1(), 60);
+    private static final Color SELECTION_OUTLINE = Palette.getActive().getAccent1();
+
+    /** The width in pixels of the outline round the selected tile, drawn inside the cell. */
+    private static final int SELECTION_STROKE = 2;
 
     // ========================================================================================== \\
     //                                           Fields                                           \\
@@ -146,6 +153,8 @@ public class Swatch extends JPanel {
 
         // the minimum matters as much as the preferred size: a layout short of room reads the minimum, and a
         // swatch without one shrinks away to nothing rather than being clipped
+        // a tileset's transparent cells show this through, so the swatch keeps an edge against the panel
+        setBackground(BACKGROUND);
         setPreferredSize(size);
         setMinimumSize(size);
         installMouseHandling();
@@ -362,8 +371,17 @@ public class Swatch extends JPanel {
         canvas.setColor(SELECTION_FILL);
         canvas.fillRect(region.x, region.y, region.width, region.height);
 
+        // the outline draws inside the cell, so the stroke is inset by half its width at every edge
+        var inset = SELECTION_STROKE / 2;
+
         canvas.setColor(SELECTION_OUTLINE);
-        canvas.drawRect(region.x, region.y, region.width - 1, region.height - 1);
+        canvas.setStroke(new BasicStroke(SELECTION_STROKE));
+        canvas.drawRect(
+                region.x + inset,
+                region.y + inset,
+                region.width  - SELECTION_STROKE,
+                region.height - SELECTION_STROKE
+        );
     }
 
     /**

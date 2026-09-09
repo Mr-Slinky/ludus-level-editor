@@ -1,5 +1,7 @@
 package com.slinky.ludus.editor.panels;
 
+import com.slinky.ludus.editor.data.Palette;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
@@ -39,8 +41,8 @@ public class ControlBar extends JPanel {
     // ========================================================================================== \\
     //                                           Static                                           \\
     // ========================================================================================== \\
-    private static final Color BACKGROUND = new Color(243, 243, 243);
-    private static final Color SEPARATOR  = new Color(0, 0, 0, 30);
+    private static final Color BACKGROUND = Palette.getActive().getChrome();
+    private static final Color SEPARATOR  = Palette.getActive().getSeparator();
 
     private static final int PADDING = 6;
     private static final int GAP     = 6;
