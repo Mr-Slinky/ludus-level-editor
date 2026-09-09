@@ -10,6 +10,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import java.awt.Dimension;
+import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 
@@ -20,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Pins the stamping that turns a press into a placed tile, which is the step that fills the grids a level is
- * written from.
+ * written from, together with the right press that frees a cell again.
  * <p>
  * Each test dispatches a real {@link MouseEvent} at the canvas and then reads the layer that came out, so the
  * conversion from a pixel position to a cell runs inside the build. A canvas needs no display for this: it
@@ -33,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @author Claude Code
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-08
+ *          Last modified: 2026-09-09
  * @since 1.0.0
  */
 class LevelCanvasTest {
@@ -173,6 +174,73 @@ class LevelCanvasTest {
         assertEquals(LevelCanvas.MAX_LAYERS, canvas.getLayerCount());
     }
 
+    @Test
+    @DisplayName("A right press frees the cell under the pointer")
+    void testEraseAt_withRightPressOverAPlacedTile_FreesThatCell() {
+        canvas.setArmedTile(tile);
+        pressAt(4 * CELL_SIZE + 10, 7 * CELL_SIZE + 10);
+
+        rightPressAt(4 * CELL_SIZE + 20, 7 * CELL_SIZE + 20);
+
+        assertAll(
+                () -> assertFalse(canvas.getLayer(0).readTile(7, 4).isPresent()),
+                () -> assertEquals(0, canvas.countPlacedTiles())
+        );
+    }
+
+    @Test
+    @DisplayName("A right press over a free cell leaves every layer free")
+    void testEraseAt_withRightPressOverAFreeCell_LeavesEveryLayerFree() {
+        rightPressAt(3 * CELL_SIZE, 3 * CELL_SIZE);
+
+        assertEquals(0, canvas.countPlacedTiles());
+    }
+
+    @Test
+    @DisplayName("A right press frees the active layer and leaves the tile below it")
+    void testEraseAt_withOneTilePerLayer_FreesTheActiveLayerAlone() {
+        canvas.setArmedTile(tile);
+        pressAt(5 * CELL_SIZE, 5 * CELL_SIZE);
+
+        canvas.setActiveLayer(2);
+        pressAt(5 * CELL_SIZE, 5 * CELL_SIZE);
+
+        rightPressAt(5 * CELL_SIZE, 5 * CELL_SIZE);
+
+        assertAll(
+                () -> assertFalse(canvas.getLayer(2).readTile(5, 5).isPresent()),
+                () -> assertTrue(canvas.getLayer(0).readTile(5, 5).isPresent()),
+                () -> assertEquals(1, canvas.countPlacedTiles())
+        );
+    }
+
+    @ParameterizedTest
+    @CsvSource({"-5, 100", "100, -5", "700, 100", "100, 700"})
+    @DisplayName("A right press outside the grid keeps every placed tile")
+    void testEraseAt_withPointOutsideTheGrid_KeepsEveryPlacedTile(int x, int y) {
+        canvas.setArmedTile(tile);
+        pressAt(2 * CELL_SIZE, 2 * CELL_SIZE);
+
+        rightPressAt(x, y);
+
+        assertEquals(1, canvas.countPlacedTiles());
+    }
+
+    @Test
+    @DisplayName("A right press keeps the armed tile, so the next left press stamps again")
+    void testEraseAt_withArmedTile_KeepsItArmed() {
+        canvas.setArmedTile(tile);
+        pressAt(CELL_SIZE, CELL_SIZE);
+
+        rightPressAt(CELL_SIZE, CELL_SIZE);
+        pressAt(CELL_SIZE, CELL_SIZE);
+
+        assertAll(
+                () -> assertTrue(canvas.getArmedTile().isPresent()),
+                () -> assertTrue(canvas.getLayer(0).readTile(1, 1).isPresent())
+        );
+    }
+
     // ========================================================================================== \\
     //                                       Helper Methods                                       \\
     // ========================================================================================== \\
@@ -182,6 +250,18 @@ class LevelCanvasTest {
     private void pressAt(int x, int y) {
         canvas.dispatchEvent(new MouseEvent(
                 canvas, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(), 0, x, y, 1, false
+        ));
+    }
+
+    /**
+     * Dispatches a press of button 3 at a point in component pixels, which is the gesture that frees a cell. The
+     * modifier and the button number both go in, since {@link javax.swing.SwingUtilities#isRightMouseButton} reads
+     * the extended modifiers.
+     */
+    private void rightPressAt(int x, int y) {
+        canvas.dispatchEvent(new MouseEvent(
+                canvas, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(), InputEvent.BUTTON3_DOWN_MASK,
+                x, y, 1, false, MouseEvent.BUTTON3
         ));
     }
 

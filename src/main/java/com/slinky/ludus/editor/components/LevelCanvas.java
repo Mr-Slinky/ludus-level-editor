@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 
 /**
  * A stack of {@value #MAX_LAYERS} grids, one per layer, that a caller stamps tiles onto. Each cell is the size
@@ -45,6 +46,9 @@ import javax.swing.JPanel;
  * tile into the cell under the pointer. The armed tile stays armed, so one tile can be stamped as many times as
  * a user likes. While a tile is armed, the cell under the pointer shows it at reduced opacity inside an outline,
  * so a user sees where a press will land before making it.
+ * <p>
+ * A press of the right button frees the cell under the pointer, on the active layer alone. The armed tile stays
+ * armed through it, so the next left press stamps that tile as before.
  * <p>
  * {@link TileGrid} stores the placed tiles of one layer. A resize goes through {@link #resizeGrid(int, int)},
  * which sets every layer at once. Growing keeps every tile where it is, and shrinking keeps the tiles that stay
@@ -79,7 +83,7 @@ import javax.swing.JPanel;
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-08
+ *          Last modified: 2026-09-09
  * @since 1.0.0
  */
 public class LevelCanvas extends JPanel {
@@ -375,7 +379,11 @@ public class LevelCanvas extends JPanel {
 
             @Override
             public void mousePressed(MouseEvent e) {
-                stampAt(e.getPoint());
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    eraseAt(e.getPoint());
+                } else {
+                    stampAt(e.getPoint());
+                }
             }
 
             @Override
@@ -409,6 +417,17 @@ public class LevelCanvas extends JPanel {
 
         findCell(point).ifPresent(cell -> {
             readActiveGrid().placeTile(cell.y, cell.x, armedTile);
+            repaint();
+        });
+    }
+
+    /**
+     * Frees the cell of the active layer containing the point, leaving the tiles of every other layer where they
+     * stand. A point outside the grid frees nothing.
+     */
+    private void eraseAt(Point point) {
+        findCell(point).ifPresent(cell -> {
+            readActiveGrid().removeTile(cell.y, cell.x);
             repaint();
         });
     }
