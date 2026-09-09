@@ -1,0 +1,7 @@
+# Every text file is stored and checked out with LF endings, whichever tool wrote
+# it, so a rewrite of a file changes the lines it touched alone.
+* text=auto eol=lf
+
+# Art keeps every byte as it stands.
+*.png      binary
+*.aseprite binary
