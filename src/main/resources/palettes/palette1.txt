@@ -1,0 +1,30 @@
+// Ludus level editor, dark scheme on cyan, yellow and magenta.
+//
+// The order is fixed: dark, light, accent1, accent2, accent3.
+// A line takes the form 0xRRGGBB, #RRGGBB or a plain decimal number.
+
+// dark     the window ground and the well behind the canvas.
+//          Near black with the faintest blue cast, so the three accents read as
+//          the saturated colours they are.
+0x13151C
+
+// light    text, chevrons and every raised surface.
+//          Off white, held just short of pure so it stops glaring against the
+//          ground.
+0xEDF0F5
+
+// accent1  a selection, and the tile armed for the next stamp.
+//          Yellow pulled a little off the pure primary, warm against everything
+//          else here and the one accent that survives over the yellow greens and
+//          the teal water in the terrain art.
+0xF5E14C
+
+// accent2  a hover, a focus, and the value a stepper stands on.
+//          Cyan, bright enough to separate from the teal water rather than echo
+//          it, which keeps the chrome distinct from the thing it edits.
+0x3FE0E8
+
+// accent3  the save action, and the outline of a control under the pointer.
+//          Magenta, the rarest of the three on screen, so the one control that
+//          writes a file to disk is the one that wears it.
+0xF25CC8

@@ -45,6 +45,34 @@ change, so it is the developer's call every time.
 
 ---
 
+## The unit of work
+
+The agent writes one unit of work at a time. Each of these is one unit:
+
+- A class together with its fields.
+- The static constants of a class.
+- A constructor.
+- A record.
+
+Two things follow for documentation.
+
+- **Documentation is a unit of its own.** The agent writes a class in one unit, and its Javadoc and
+  comments in a later one.
+- **One file is documented per unit.** The developer asks by file where a unit is to cover more than
+  one.
+
+---
+
+## The branch a change lands on
+
+Every commit the agent makes goes on `dev`, and the README describes what each branch contains.
+
+The developer declares an iteration stable by squashing it onto `main`, and that judgement is theirs
+every time, exactly as the file format decision is. The agent commits to `main` when the developer
+asks for the squash by name.
+
+---
+
 ## Verification without a person watching
 
 A Swing component paints into a `BufferedImage` off screen, which is how a change to the drawing is

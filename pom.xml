@@ -23,6 +23,19 @@
     <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
     <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
     <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
+    <maven-clean-plugin.version>3.4.0</maven-clean-plugin.version>
+    <maven-dependency-plugin.version>3.8.1</maven-dependency-plugin.version>
+    <exec-maven-plugin.version>3.5.0</exec-maven-plugin.version>
+
+    <!-- The application that jlink and jpackage build, under the dist profile -->
+    <app.module>com.slinky.ludus.editor</app.module>
+    <app.main.class>com.slinky.ludus.editor.Editor</app.main.class>
+    <app.name>Ludus Level Editor</app.name>
+    <app.vendor>Slinky</app.vendor>
+
+    <dist.modules.dir>${project.build.directory}/modules</dist.modules.dir>
+    <dist.runtime.dir>${project.build.directory}/runtime</dist.runtime.dir>
+    <dist.image.dir>${project.build.directory}/dist</dist.image.dir>
   </properties>
 
   <dependencyManagement>
@@ -96,5 +109,129 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!--
+      mvn clean package -Pdist builds target/dist/Ludus Level Editor, a directory holding the launcher, the
+      application module and a runtime cut to the modules that the editor requires. Copying that directory to
+      another Windows machine is all that running it takes.
+    -->
+    <profile>
+      <id>dist</id>
+
+      <build>
+        <plugins>
+          <!-- jlink and jpackage both refuse to write over an output directory, so each run starts clean. -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-clean-plugin</artifactId>
+            <version>${maven-clean-plugin.version}</version>
+            <executions>
+              <execution>
+                <id>clear-dist-output</id>
+                <phase>prepare-package</phase>
+                <goals>
+                  <goal>clean</goal>
+                </goals>
+                <configuration>
+                  <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                  <filesets>
+                    <fileset>
+                      <directory>${dist.modules.dir}</directory>
+                    </fileset>
+                    <fileset>
+                      <directory>${dist.runtime.dir}</directory>
+                    </fileset>
+                    <fileset>
+                      <directory>${dist.image.dir}</directory>
+                    </fileset>
+                  </filesets>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+
+          <!-- jlink resolves com.google.gson from the module path, so the jar is put where it can find it. -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>${maven-dependency-plugin.version}</version>
+            <executions>
+              <execution>
+                <id>collect-modules</id>
+                <phase>prepare-package</phase>
+                <goals>
+                  <goal>copy-dependencies</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>${dist.modules.dir}</outputDirectory>
+                  <includeScope>runtime</includeScope>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>${exec-maven-plugin.version}</version>
+            <executions>
+              <!-- Links the editor, Gson and the JDK modules that both reach into one runtime image. -->
+              <execution>
+                <id>link-runtime</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>${java.home}/bin/jlink</executable>
+                  <arguments>
+                    <argument>--module-path</argument>
+                    <argument>${project.build.directory}/${project.build.finalName}.jar${path.separator}${dist.modules.dir}</argument>
+                    <argument>--add-modules</argument>
+                    <argument>${app.module}</argument>
+                    <argument>--output</argument>
+                    <argument>${dist.runtime.dir}</argument>
+                    <argument>--strip-debug</argument>
+                    <argument>--no-header-files</argument>
+                    <argument>--no-man-pages</argument>
+                    <argument>--compress=zip-6</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+
+              <!-- Wraps that runtime in a launcher, which starts the editor without a JDK installed. -->
+              <execution>
+                <id>package-image</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>${java.home}/bin/jpackage</executable>
+                  <arguments>
+                    <argument>--type</argument>
+                    <argument>app-image</argument>
+                    <argument>--name</argument>
+                    <argument>${app.name}</argument>
+                    <argument>--app-version</argument>
+                    <argument>${project.version}</argument>
+                    <argument>--vendor</argument>
+                    <argument>${app.vendor}</argument>
+                    <argument>--dest</argument>
+                    <argument>${dist.image.dir}</argument>
+                    <argument>--runtime-image</argument>
+                    <argument>${dist.runtime.dir}</argument>
+                    <argument>--module</argument>
+                    <argument>${app.module}/${app.main.class}</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
 </project>
