@@ -1,7 +1,12 @@
 package com.slinky.ludus.editor;
 
+import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
+import java.awt.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The application window, which opens a {@link RootPanel} over the terrain tilesets and centres itself on the
@@ -28,6 +33,8 @@ public class Editor extends JFrame {
     // ========================================================================================== \\
     //                                           Static                                           \\
     // ========================================================================================== \\
+    private static final String ICON_RESOURCE  = "/icons/favicon-%d.png";
+    private static final int[]  ICON_SIZES     = {16, 32, 48, 128, 256, 512};
 
     private static final String[] TILESETS = {
             "terrain/tilesets/tilemap_color1.png",
@@ -42,16 +49,13 @@ public class Editor extends JFrame {
     }
 
     // ========================================================================================== \\
-    //                                           Fields                                           \\
-    // ========================================================================================== \\
-
-    // ========================================================================================== \\
     //                                       Constructor(s)                                       \\
     // ========================================================================================== \\
     public Editor() {
         super("Ludus Level Editor");
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setIconImages(loadIcons());
         setUndecorated(true);
         add(new RootPanel(TILESETS));
         pack();
@@ -59,22 +63,23 @@ public class Editor extends JFrame {
     }
 
     // ========================================================================================== \\
-    //                                          Getters                                           \\
-    // ========================================================================================== \\
-
-    // ========================================================================================== \\
-    //                                          Setters                                           \\
-    // ========================================================================================== \\
-
-    // ========================================================================================== \\
-    //                                        API Methods                                         \\
-    // ========================================================================================== \\
-
-    // ========================================================================================== \\
     //                                       Helper Methods                                       \\
     // ========================================================================================== \\
+    // Skips any size absent from the classpath, so ICON_SIZES may list more than ships.
+    private static List<Image> loadIcons() {
+        var icons = new ArrayList<Image>();
 
-    // ========================================================================================== \\
-    //                                       Helper Classes                                       \\
-    // ========================================================================================== \\
+        for (int size : ICON_SIZES) {
+            var resource = ICON_RESOURCE.formatted(size);
+            try (var in = Editor.class.getResourceAsStream(resource)) {
+                if (in != null) {
+                    icons.add(ImageIO.read(in));
+                }
+            } catch (IOException ex) {
+                throw new IllegalStateException(String.format("Icon resource '%s' failed to decode", resource), ex);
+            }
+        }
+
+        return icons;
+    }
 }
