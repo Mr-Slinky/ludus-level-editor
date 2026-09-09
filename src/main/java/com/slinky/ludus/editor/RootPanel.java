@@ -1,7 +1,10 @@
 package com.slinky.ludus.editor;
 
+import com.slinky.ludus.editor.components.ActionButton;
+import com.slinky.ludus.editor.components.CanvasStage;
 import com.slinky.ludus.editor.components.LevelCanvas;
 import com.slinky.ludus.editor.components.Stepper;
+import com.slinky.ludus.editor.data.Palette;
 import com.slinky.ludus.editor.panels.ControlBar;
 import com.slinky.ludus.editor.panels.SwatchPanel;
 import com.slinky.ludus.editor.panels.TitleBar;
@@ -27,8 +30,10 @@ import javax.swing.*;
  * up towards {@value #MAX_ROWS} by {@value #MAX_COLUMNS}. A step that would drop a placed tile leaves the grid
  * and both captions where they are.
  * <p>
- * Each side occupies a {@link GridBagLayout} containing it as its only child, which lays it out at its preferred
- * size and centres it, so growing the window leaves both components centred in the space that they were given.
+ * Each side stands on a surface that fills the height of the window. The deck fills the surface holding it, so
+ * a tileset shorter than the window leaves the swatch's own ground running down to the bottom edge. The canvas
+ * sits in a {@link GridBagLayout} instead, which lays a single child out at its preferred size and centres it,
+ * so growing the window leaves the grid in the middle of the room that it was given.
  * <p>
  * A margin of {@value #PADDING} pixels surrounds both sides, and the same distance separates one from the other,
  * so the two of them contribute {@code 3 * PADDING} pixels to the window's width and {@code 2 * PADDING} to its
@@ -69,7 +74,22 @@ public class RootPanel extends JPanel {
     /** The distance in pixels between the window edge and either side, and between the two sides. */
     public static final int PADDING = 12;
 
-    private static final Color WINDOW_EDGE = new Color(0, 0, 0, 40);
+    private static final Color GROUND      = Palette.getActive().getDark();
+    private static final Color WINDOW_EDGE = Palette.withAlpha(Palette.getActive().getLight(), 40);
+
+    /** The accent that a palette reserves for the action writing a file, which the save button fills with. */
+    private static final Color SAVE_FILL = Palette.getActive().getAccent3();
+
+    /**
+     * The surface that the deck and the canvas stand on. It lifts less far from the ground than the two bars
+     * do, so the window reads at three depths: the ground in the margins, the surfaces on it, and the bars
+     * above both.
+     */
+    private static final Color SURFACE      = Palette.blend(Palette.getActive().getDark(), Palette.getActive().getLight(), 0.035f);
+    private static final Color SURFACE_EDGE = Palette.withAlpha(Palette.getActive().getLight(), 22);
+
+    /** The distance in pixels between the deck and the edges of the surface holding it. */
+    private static final int SURFACE_PADDING = 10;
 
     // ========================================================================================== \\
     //                                           Fields                                           \\
@@ -108,12 +128,10 @@ public class RootPanel extends JPanel {
         controlBar.addLeading(rowStepper);
         controlBar.addLeading(columnStepper);
 
-        var saveButton = new JButton("Save"); // TODO
-        saveButton.addActionListener(_ -> saveLevel());
-
-        controlBar.addTrailing(saveButton);
+        controlBar.addTrailing(buildSaveButton());
 
         setLayout(new BorderLayout());
+        setBackground(GROUND);
         setBorder(BorderFactory.createLineBorder(WINDOW_EDGE));
         add(titleBar, BorderLayout.NORTH);
         add(buildBody(), BorderLayout.CENTER);
@@ -203,27 +221,54 @@ public class RootPanel extends JPanel {
     }
 
     /**
+     * Builds the save button in the accent that a palette reserves for the save action, which makes it the one
+     * control in the bar that a user picks out by colour.
+     */
+    private ActionButton buildSaveButton() {
+        var saveButton = new ActionButton("Save", SAVE_FILL);
+
+        saveButton.addActionListener(_ -> saveLevel());
+
+        return saveButton;
+    }
+
+    /**
      * Lays the deck and the canvas out side by side inside the margin, which keeps the margin clear of the title
      * bar above.
      */
     private JPanel buildBody() {
         var body = new JPanel(new BorderLayout(PADDING, 0));
+        body.setBackground(GROUND);
         body.setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING));
-        body.add(buildCentredArea(swatchPanel), BorderLayout.WEST);
-        body.add(buildCentredArea(levelCanvas), BorderLayout.CENTER);
+        body.add(buildDock(swatchPanel), BorderLayout.WEST);
+        body.add(buildStage(levelCanvas), BorderLayout.CENTER);
 
         return body;
     }
 
     /**
-     * Wraps a component in a {@link GridBagLayout}, which lays a single child out at its preferred size and
-     * centres it in whatever room the layout gives it.
+     * Builds the surface down the left edge, with the deck against its top edge and the surface running the
+     * full height of the body below it. A deck shorter than the window leaves room at the bottom of a panel
+     * that a user can see the edges of, rather than a gap in the window behind it.
      */
-    private JPanel buildCentredArea(JPanel content) {
-        var area = new JPanel(new GridBagLayout());
-        area.add(content);
+    private JPanel buildDock(JPanel content) {
+        var dock = new JPanel(new BorderLayout());
+        dock.setBackground(SURFACE);
+        dock.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(SURFACE_EDGE),
+                BorderFactory.createEmptyBorder(SURFACE_PADDING, SURFACE_PADDING, SURFACE_PADDING, SURFACE_PADDING)));
+        dock.add(content, BorderLayout.CENTER);
 
-        return area;
+        return dock;
+    }
+
+    /**
+     * Builds the surface that the canvas stands on, which fills the rest of the body. A {@link CanvasStage}
+     * centres the grid while the window has room for it, and scrolls to it a cell at a time once a step past
+     * {@value #DEFAULT_ROWS} rows or columns grows the grid beyond that room.
+     */
+    private CanvasStage buildStage(JPanel content) {
+        return new CanvasStage(content, CELL_SIZE);
     }
 
 }
