@@ -32,7 +32,7 @@ import java.util.ArrayList;
  *         Last modified: 2026-09-08
  * @since 1.0.0
  */
-public final class LevelWriter {
+final class LevelWriter {
 
     private LevelWriter() { }
 
