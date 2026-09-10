@@ -1,10 +1,12 @@
 package com.slinky.ludus.editor.components;
 
 import com.slinky.ludus.editor.data.Palette;
+import com.slinky.ludus.editor.data.TileData;
 import com.slinky.ludus.editor.data.TileGrid;
 import com.slinky.ludus.editor.data.TileSource;
 
 import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -47,8 +49,18 @@ import javax.swing.SwingUtilities;
  * a user likes. While a tile is armed, the cell under the pointer shows it at reduced opacity inside an outline,
  * so a user sees where a press will land before making it.
  * <p>
- * A press of the right button frees the cell under the pointer, on the active layer alone. The armed tile stays
- * armed through it, so the next left press stamps that tile as before.
+ * A caller arms {@link TileData} through {@link #setArmedMetadata(TileData)} in the same way, and a press then
+ * writes that metadata into the cell under the pointer wherever the active layer stores a tile there. While
+ * metadata is armed, the cell under the pointer shows the outline alone. One stamp is armed at a time, so
+ * arming a tile disarms the metadata, and arming metadata disarms the tile.
+ * <p>
+ * A press of the right button frees the cell under the pointer on the active layer, removing its tile and its
+ * metadata together. Whatever is armed stays armed through it, so the next left press stamps as before.
+ * <p>
+ * Every press inside the grid, with either button, also selects the cell under the pointer, which the canvas
+ * marks with a tinted fill and an outline. {@link #getSelectedCell()} returns that cell, and
+ * {@link #readSelectedMetadata()} returns the metadata stored in that cell on the active layer. A caller follows
+ * both through {@link #addSelectionListener(SelectionListener)}.
  * <p>
  * {@link TileGrid} stores the placed tiles of one layer. A resize goes through {@link #resizeGrid(int, int)},
  * which sets every layer at once. Growing keeps every tile where it is, and shrinking keeps the tiles that stay
@@ -60,18 +72,19 @@ import javax.swing.SwingUtilities;
  * A caller arms one tile, presses twice, and reads back where the art of the first press came from:
  * <pre>{@code
  * void stampCliff(BufferedImage art) {
- *     var canvas = new LevelCanvas(64, 15, 15);
+ *     var canvas  = new LevelCanvas(64, 15, 15);
+ *     var tileset = new TileSet("/assets/terrain/tilesets/tilemap_color1.png", 64);
  *
  *     // 15 rows of 64 pixels by 15 columns of 64 pixels
  *     canvas.getPreferredSize();     // java.awt.Dimension[width=960,height=960]
  *
- *     canvas.setArmedTile(new TileSource(art, 0, 1, 1));
+ *     canvas.setArmedTile(new TileSource(art, tileset, 1, 1));
  *
  *     // a press at (300, 140) writes the armed tile into row 2, column 4 of layer 0
  *     var stamped = canvas.getGrid().readTile(2, 4);
  *
- *     stamped.get().tileset();       // 0
- *     stamped.get().sourceColumn();  // 1
+ *     stamped.get().tileset().path();  // "/assets/terrain/tilesets/tilemap_color1.png"
+ *     stamped.get().sourceColumn();    // 1
  *
  *     canvas.setActiveLayer(1);
  *
@@ -79,11 +92,31 @@ import javax.swing.SwingUtilities;
  *     canvas.getLayer(0).readTile(2, 4).isPresent();  // true
  * }
  * }</pre>
+ * <p>
+ * <b>Marking a stamped tile as traversable</b>
+ * <p>
+ * A caller stamps a tile, arms metadata, presses the same cell again, and reads the metadata back through the
+ * selection:
+ * <pre>{@code
+ * void markWalkable(TileSource grass) {
+ *     var canvas = new LevelCanvas(64, 15, 15);
+ *
+ *     canvas.setArmedTile(grass);
+ *     // a press at (300, 140) writes the tile into row 2, column 4 of layer 0
+ *
+ *     canvas.setArmedMetadata(new TileData(true));
+ *     // a second press at (300, 140) writes the metadata into that cell and selects it
+ *
+ *     canvas.getSelectedCell();                             // Optional[java.awt.Point[x=4,y=2]]
+ *     canvas.readSelectedMetadata().get().isTraversable();  // true
+ *     canvas.getArmedTile();                                // Optional.empty
+ * }
+ * }</pre>
  *
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-09
+ *          Last modified: 2026-09-10
  * @since 1.0.0
  */
 public class LevelCanvas extends JPanel {
@@ -97,11 +130,16 @@ public class LevelCanvas extends JPanel {
     /** The number of grids a canvas stacks, indexed 0 at the bottom to {@code MAX_LAYERS - 1} at the top. */
     public static final int MAX_LAYERS = 6;
 
-    private static final Color BACKGROUND    = Palette.getActive().getDark();
-    private static final Color GRID_COLOUR   = Palette.getActive().getGridLine();
-    private static final Color HOVER_OUTLINE = Palette.getActive().getAccent1();
+    private static final Color BACKGROUND        = Palette.getActive().getDark();
+    private static final Color GRID_COLOUR       = Palette.getActive().getGridLine();
+    private static final Color HOVER_OUTLINE     = Palette.getActive().getAccent1();
+    private static final Color SELECTION_FILL    = Palette.withAlpha(Palette.getActive().getAccent1(), 60);
+    private static final Color SELECTION_OUTLINE = Palette.getActive().getAccent1();
 
     private static final float HOVER_ALPHA = 0.45f;
+
+    /** The width in pixels of the outline round the selected cell, drawn inside the cell. */
+    private static final int SELECTION_STROKE = 2;
 
     /**
      * Returns the colour filling {@value #WATER_ASSET}, taken from its top left pixel. The asset is a single
@@ -117,6 +155,7 @@ public class LevelCanvas extends JPanel {
     //                                           Fields                                           \\
     // ========================================================================================== \\
     private final List<TileGrid> layers = new ArrayList<>();
+    private final List<SelectionListener> listeners = new ArrayList<>();
     private final Color waterColour = readWaterColour();
     private final int cellWidth;
     private final int cellHeight;
@@ -125,7 +164,9 @@ public class LevelCanvas extends JPanel {
 
     private int        activeLayer;
     private TileSource armedTile;
+    private TileData   armedMetadata;
     private Point      hovered;
+    private Point      selected;
 
     // ========================================================================================== \\
     //                                       Constructor(s)                                       \\
@@ -253,11 +294,30 @@ public class LevelCanvas extends JPanel {
         return Optional.ofNullable(armedTile);
     }
 
+    /**
+     * Returns the metadata that a press will stamp.
+     *
+     * @return the armed {@link TileData}, and empty while no metadata is armed
+     */
+    public Optional<TileData> getArmedMetadata() {
+        return Optional.ofNullable(armedMetadata);
+    }
+
+    /**
+     * Returns the selected cell in cell coordinates, where {@code x} is the column and {@code y} is the row.
+     *
+     * @return a copy of the selected cell, and empty while no cell is selected
+     */
+    public Optional<Point> getSelectedCell() {
+        return Optional.ofNullable(selected).map(Point::new);
+    }
+
     // ========================================================================================== \\
     //                                          Setters                                           \\
     // ========================================================================================== \\
     /**
-     * Arms a tile, which every later press stamps into the cell under the pointer until another tile replaces it.
+     * Arms a tile and disarms any metadata. Every later press stamps the tile into the cell under the pointer,
+     * until a caller arms something else.
      *
      * @param tile the tile to stamp
      * @throws IllegalArgumentException if the tile is null
@@ -267,7 +327,25 @@ public class LevelCanvas extends JPanel {
             throw new IllegalArgumentException("An armed tile requires a tile source");
         }
 
-        armedTile = tile;
+        armedTile     = tile;
+        armedMetadata = null;
+        repaint();
+    }
+
+    /**
+     * Arms metadata and disarms any tile. Every later press writes the metadata into the cell under the pointer,
+     * wherever the active layer stores a tile in that cell, until a caller arms something else.
+     *
+     * @param data the metadata to stamp
+     * @throws IllegalArgumentException if the data is null
+     */
+    public void setArmedMetadata(TileData data) {
+        if (data == null) {
+            throw new IllegalArgumentException("An armed stamp requires tile data");
+        }
+
+        armedMetadata = data;
+        armedTile     = null;
         repaint();
     }
 
@@ -282,17 +360,55 @@ public class LevelCanvas extends JPanel {
         requireLayer(layer);
 
         activeLayer = layer;
+        fireSelectionChanged();
     }
 
     // ========================================================================================== \\
     //                                        API Methods                                         \\
     // ========================================================================================== \\
     /**
-     * Disarms the tile, so that a press leaves the grid as it stands.
+     * Disarms the tile and leaves any armed metadata armed.
      */
     public void clearArmedTile() {
         armedTile = null;
         repaint();
+    }
+
+    /**
+     * Disarms the metadata and leaves any armed tile armed.
+     */
+    public void clearArmedMetadata() {
+        armedMetadata = null;
+        repaint();
+    }
+
+    /**
+     * Returns the metadata stored in the selected cell on the active layer.
+     *
+     * @return that cell's {@link TileData}, and empty while no cell is selected or the selected cell is free on
+     *         the active layer
+     */
+    public Optional<TileData> readSelectedMetadata() {
+        if (selected == null) {
+            return Optional.empty();
+        }
+
+        var grid = readActiveGrid();
+
+        return grid.readTile(selected.y, selected.x).isPresent()
+                ? Optional.of(grid.readMetadata(selected.y, selected.x))
+                : Optional.empty();
+    }
+
+    /**
+     * Registers a listener that the canvas calls after every event that can change what
+     * {@link #getSelectedCell()} or {@link #readSelectedMetadata()} returns. Those events are a press inside the
+     * grid, a change of active layer, a clear, and a resize that deselects the selected cell.
+     *
+     * @param listener the listener to notify
+     */
+    public void addSelectionListener(SelectionListener listener) {
+        listeners.add(listener);
     }
 
     /**
@@ -301,6 +417,7 @@ public class LevelCanvas extends JPanel {
     public void clearGrid() {
         readActiveGrid().clear();
         repaint();
+        fireSelectionChanged();
     }
 
     /**
@@ -310,11 +427,13 @@ public class LevelCanvas extends JPanel {
     public void clearAllLayers() {
         layers.forEach(TileGrid::clear);
         repaint();
+        fireSelectionChanged();
     }
 
     /**
      * Resizes every layer and lays the canvas out again at the new pixel size. All layers share one size, so a
-     * resize either sets all of them or sets none. Every tile inside the new bounds keeps its cell.
+     * resize either sets all of them or sets none. Every tile inside the new bounds keeps its cell, and the canvas
+     * deselects a selected cell that falls outside them.
      *
      * @param rows    the new height in cells
      * @param columns the new width in cells
@@ -329,6 +448,12 @@ public class LevelCanvas extends JPanel {
         }
 
         layers.forEach(layer -> layer.resize(rows, columns));
+
+        if (selected != null && !readActiveGrid().contains(selected.y, selected.x)) {
+            selected = null;
+            fireSelectionChanged();
+        }
+
         applyGridSize();
         revalidate();
         repaint();
@@ -367,6 +492,7 @@ public class LevelCanvas extends JPanel {
         paintWater(canvas);
         paintTiles(canvas);
         paintGrid(canvas);
+        paintSelection(canvas);
         paintHover(canvas);
         canvas.dispose();
     }
@@ -384,6 +510,8 @@ public class LevelCanvas extends JPanel {
                 } else {
                     stampAt(e.getPoint());
                 }
+
+                selectAt(e.getPoint());
             }
 
             @Override
@@ -407,29 +535,60 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Writes the armed tile into the cell of the active layer containing the point, leaving every layer alone
-     * while no tile is armed or the point falls outside the grid.
+     * Writes the armed tile or the armed metadata into the cell of the active layer containing the point. With
+     * nothing armed, or with the point outside the grid, every layer stays as it stands.
      */
     private void stampAt(Point point) {
-        if (armedTile == null) {
-            return;
-        }
-
         findCell(point).ifPresent(cell -> {
-            readActiveGrid().placeTile(cell.y, cell.x, armedTile);
-            repaint();
+            if (armedTile != null) {
+                readActiveGrid().placeTile(cell.y, cell.x, armedTile);
+                repaint();
+            } else if (armedMetadata != null) {
+                stampMetadataAt(cell);
+            }
         });
     }
 
     /**
-     * Frees the cell of the active layer containing the point, leaving the tiles of every other layer where they
-     * stand. A point outside the grid frees nothing.
+     * Writes the armed metadata into a cell of the active layer that stores a tile, and leaves a free cell as it
+     * stands.
+     */
+    private void stampMetadataAt(Point cell) {
+        var grid = readActiveGrid();
+
+        // a written level includes the metadata of occupied cells alone
+        if (grid.readTile(cell.y, cell.x).isPresent()) {
+            grid.placeMetadata(cell.y, cell.x, armedMetadata);
+        }
+    }
+
+    /**
+     * Frees the cell of the active layer containing the point, removing its tile and its metadata and leaving
+     * every other layer as it stands. A point outside the grid frees nothing.
      */
     private void eraseAt(Point point) {
         findCell(point).ifPresent(cell -> {
             readActiveGrid().removeTile(cell.y, cell.x);
             repaint();
         });
+    }
+
+    /**
+     * Selects the cell containing the point and tells every listener, even where that cell was already selected,
+     * since the press that selected it may also have changed what it contains.
+     */
+    private void selectAt(Point point) {
+        findCell(point).ifPresent(cell -> {
+            selected = cell;
+            repaint();
+            fireSelectionChanged();
+        });
+    }
+
+    private void fireSelectionChanged() {
+        for (var listener : listeners) {
+            listener.handleSelectionChange();
+        }
     }
 
     /**
@@ -509,21 +668,47 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Draws the armed tile at reduced opacity in the cell under the pointer, with an outline around it, so a user
-     * sees where a press will land before making it.
+     * Marks the selected cell with a tinted fill and an outline drawn inside the cell.
+     */
+    private void paintSelection(Graphics2D canvas) {
+        if (selected == null) {
+            return;
+        }
+
+        var x = selected.x * cellWidth;
+        var y = selected.y * cellHeight;
+
+        canvas.setColor(SELECTION_FILL);
+        canvas.fillRect(x, y, cellWidth, cellHeight);
+
+        // the outline draws inside the cell, so the stroke is inset by half its width at every edge
+        var inset   = SELECTION_STROKE / 2;
+        var outline = (Graphics2D) canvas.create();
+
+        outline.setColor(SELECTION_OUTLINE);
+        outline.setStroke(new BasicStroke(SELECTION_STROKE));
+        outline.drawRect(x + inset, y + inset, cellWidth - SELECTION_STROKE, cellHeight - SELECTION_STROKE);
+        outline.dispose();
+    }
+
+    /**
+     * Outlines the cell under the pointer while anything is armed, and draws an armed tile inside the outline at
+     * reduced opacity, so a user sees where a press will land before making it.
      */
     private void paintHover(Graphics2D canvas) {
-        if (armedTile == null || hovered == null) {
+        if (hovered == null || (armedTile == null && armedMetadata == null)) {
             return;
         }
 
         var x = hovered.x * cellWidth;
         var y = hovered.y * cellHeight;
 
-        var ghost = (Graphics2D) canvas.create();
-        ghost.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, HOVER_ALPHA));
-        ghost.drawImage(armedTile.image(), x, y, cellWidth, cellHeight, null);
-        ghost.dispose();
+        if (armedTile != null) {
+            var ghost = (Graphics2D) canvas.create();
+            ghost.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, HOVER_ALPHA));
+            ghost.drawImage(armedTile.image(), x, y, cellWidth, cellHeight, null);
+            ghost.dispose();
+        }
 
         canvas.setColor(HOVER_OUTLINE);
         canvas.drawRect(x, y, cellWidth - 1, cellHeight - 1);
@@ -577,6 +762,22 @@ public class LevelCanvas extends JPanel {
         if (layer < 0 || layer >= layers.size()) {
             throw new IndexOutOfBoundsException(String.format("A stack of %d layers has no layer %d", layers.size(), layer));
         }
+    }
+
+    // ========================================================================================== \\
+    //                                       Helper Classes                                       \\
+    // ========================================================================================== \\
+    /**
+     * Receives a call whenever the selected cell on a {@link LevelCanvas}, or the metadata stored in it, can have
+     * changed. The listener reads the new state back from the canvas.
+     */
+    @FunctionalInterface
+    public interface SelectionListener {
+
+        /**
+         * Handles a change to the selected cell, or to the metadata stored in it.
+         */
+        void handleSelectionChange();
     }
 
 }

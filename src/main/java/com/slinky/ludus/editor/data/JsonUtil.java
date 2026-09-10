@@ -12,6 +12,8 @@ import java.util.TreeSet;
  *
  * @author Kheagen Haskins
  * @version 1.0.0
+ *         <p>
+ *         Last modified: 2026-09-10
  * @since 1.0.0
  */
 public class JsonUtil {
@@ -46,13 +48,16 @@ public class JsonUtil {
      *   "layers": [
      *     {
      *       "tiles": [
-     *         { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 },
-     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 }
+     *         { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
+     *           "data": { "traversable": true } },
+     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
+     *           "data": { "traversable": true } }
      *       ]
      *     },
      *     {
      *       "tiles": [
-     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 5, "sourceColumn": 6 }
+     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 5, "sourceColumn": 6,
+     *           "data": { "traversable": false } }
      *       ]
      *     },
      *     {
@@ -60,11 +65,14 @@ public class JsonUtil {
      *     }
      *   ]
      * }
-     *  </pre>
+     * }</pre>
      * <p>
      * The {@code tilesets} array is collected from the tiles that the layers place, so it lists exactly the
      * tilesets that the level draws from, ordered by path. Each tile's {@code tileset} property is its
      * tileset's position in that array.
+     * <p>
+     * Each tile ends with a {@code data} object, which states the {@link TileData} of its cell as
+     * {@link TileGrid#readMetadata(int, int)} returns it.
      * <p>
      * The {@code layers} array runs one entry per layer given, in the order that they paint, bottom first. A
      * layer with every cell free writes an entry whose {@code tiles} array is empty, as the third entry above
@@ -107,8 +115,10 @@ public class JsonUtil {
      * <pre>{@code
      *  {
      *      "tiles": [
-     *          { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 },
-     *          { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 }
+     *          { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
+     *            "data": { "traversable": true } },
+     *          { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
+     *            "data": { "traversable": false } }
      *      ]
      *  }
      *  }
@@ -141,7 +151,7 @@ public class JsonUtil {
      */
     private static List<TileSet> collectTileSets(Collection<TileGrid> layers) {
         // the comparator decides equality as well as order here, so it reads both components of a TileSet
-        var found = new TreeSet<TileSet>(Comparator.comparing(TileSet::path).thenComparingInt(TileSet::cellSize));
+        var found = new TreeSet<>(Comparator.comparing(TileSet::path).thenComparingInt(TileSet::cellSize));
 
         for (var layer : layers) {
             for (var tile : layer.readPlacedTiles()) {
@@ -171,7 +181,10 @@ public class JsonUtil {
         var index = tilesets.indexOf(tile.tileset());
 
         if (index < 0) {
-            throw new IllegalArgumentException(String.format("The given tilesets contain no entry for '%s', which the tile at row %d, column %d was cut from", tile.tileset().path(), tile.row(), tile.column()));
+            throw new IllegalArgumentException(
+                    "The given tilesets contain no entry for '%s', which the tile at row %d, column %d was cut from"
+                            .formatted(tile.tileset().path(), tile.row(), tile.column())
+            );
         }
 
         var tileJson = new JsonObject();
@@ -181,8 +194,17 @@ public class JsonUtil {
         tileJson.addProperty("tileset", index);
         tileJson.addProperty("sourceRow", tile.sourceRow());
         tileJson.addProperty("sourceColumn", tile.sourceColumn());
+        tileJson.add("data", toJson(tile.data()));
 
         return tileJson;
+    }
+
+    private static JsonObject toJson(TileData data) {
+        var dataJson = new JsonObject();
+
+        dataJson.addProperty("traversable", data.isTraversable());
+
+        return dataJson;
     }
 
 }
