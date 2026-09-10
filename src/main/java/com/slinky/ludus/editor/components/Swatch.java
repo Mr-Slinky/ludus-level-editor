@@ -26,9 +26,14 @@ import javax.swing.JPanel;
  * tile width and height determine how many rows and columns this swatch has. An image 192 pixels wide and 64
  * tall, cut into 64 pixel tiles, yields one row and three columns.
  * <p>
- * A press selects the one tile under the pointer. {@link #getSelection()} returns that tile in tile
- * coordinates, where {@code x} is the column and {@code y} is the row. A new swatch starts with an empty
+ * A press selects the one tile under the pointer, and a second press on that same tile clears the selection,
+ * so one gesture both picks a tile up and puts it back. {@link #getSelection()} returns the selected tile in
+ * tile coordinates, where {@code x} is the column and {@code y} is the row. A new swatch starts with an empty
  * selection, and {@link #clearSelection()} returns it to that state.
+ * <p>
+ * Every press reports to each {@link SelectionListener} registered through
+ * {@link #addSelectionListener(SelectionListener)}, whether that press selected a tile or cleared one, and a
+ * listener reads which of the two happened through {@link #getSelection()}.
  * <p>
  * <b>Keeping one selection across several swatches</b>
  * <p>
@@ -38,8 +43,8 @@ import javax.swing.JPanel;
  * var terrain = new Swatch(terrainPath, 64);
  * var water   = new Swatch(waterPath, 64);
  *
- * terrain.addSelectionListener(selection -> water.clearSelection());
- * water.addSelectionListener(selection -> terrain.clearSelection());
+ * terrain.addSelectionListener(() -> water.clearSelection());
+ * water.addSelectionListener(() -> terrain.clearSelection());
  *
  * // a press on the first tile of the second row of the terrain swatch leaves
  * // terrain.getSelection() equal to Optional[java.awt.Point[x=0,y=1]]
@@ -223,7 +228,7 @@ public class Swatch extends JPanel {
     //                                        API Methods                                         \\
     // ========================================================================================== \\
     /**
-     * Registers a listener that receives the selection every time it changes.
+     * Registers a listener that runs every time a press changes the selection, in either direction.
      *
      * @param listener the listener to notify
      */
@@ -336,20 +341,20 @@ public class Swatch extends JPanel {
         return Math.max(0, Math.min(value, maximum));
     }
 
+    /**
+     * Selects the given tile, and clears the selection where that tile is the one already selected, which is
+     * how a user puts a tile back with the same gesture that picked it up.
+     */
     private void updateSelection(Point tile) {
-        if (tile.equals(selection)) {
-            return;
-        }
+        selection = tile.equals(selection) ? null : tile;
 
-        selection = tile;
         repaint();
         fireSelectionChanged();
     }
 
     private void fireSelectionChanged() {
-        var current = new Point(selection);
         for (var listener : listeners) {
-            listener.handleSelection(current);
+            listener.handleSelectionChange();
         }
     }
 
@@ -412,17 +417,16 @@ public class Swatch extends JPanel {
     //                                       Helper Classes                                       \\
     // ========================================================================================== \\
     /**
-     * Receives the tile that a {@link Swatch} selects, so a component beside the swatch can follow the selection.
+     * Receives every change to a {@link Swatch}'s selection, so a component beside the swatch can follow it.
      */
     @FunctionalInterface
     public interface SelectionListener {
 
         /**
-         * Accepts the tile now selected.
-         *
-         * @param selection the selected tile in tile coordinates, with {@code x} the column and {@code y} the row
+         * Handles a press that selected a tile or cleared the selection, which a listener tells apart by
+         * calling {@link Swatch#getSelection()}.
          */
-        void handleSelection(Point selection);
+        void handleSelectionChange();
     }
 
 }

@@ -1,5 +1,6 @@
 package com.slinky.ludus.editor.components;
 
+import com.slinky.ludus.editor.data.TileData;
 import com.slinky.ludus.editor.data.TileSet;
 import com.slinky.ludus.editor.data.TileSource;
 
@@ -10,6 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import java.awt.Dimension;
+import java.awt.Point;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
@@ -20,21 +22,25 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pins the stamping that turns a press into a placed tile, which is the step that fills the grids a level is
- * written from, together with the right press that frees a cell again.
+ * Pins the two gestures that a user edits a level with: the press that selects a cell without altering it, and
+ * the stamp that fills the grids a level is written from. The right press that frees a cell again goes in here
+ * too.
  * <p>
  * Each test dispatches a real {@link MouseEvent} at the canvas and then reads the layer that came out, so the
  * conversion from a pixel position to a cell runs inside the build. A canvas needs no display for this: it
  * loads its water colour from the classpath and installs listeners, and it paints nothing until something asks
  * it to.
  * <p>
- * Cells are {@value #CELL_SIZE} pixels square here, so a press at {@code (x, y)} lands in row
+ * Stamping runs through {@link LevelCanvas#stampHoveredCell()}, which is what the E key is bound to. A test
+ * moves the pointer and then calls it, which is the pair of steps that a user performs.
+ * <p>
+ * Cells are {@value #CELL_SIZE} pixels square here, so a point {@code (x, y)} lands in row
  * {@code y / CELL_SIZE} and column {@code x / CELL_SIZE}.
  *
  * @author Claude Code
- * @version 1.0.0
+ * @version 2.0.0
  *          <p>
- *          Last modified: 2026-09-09
+ *          Last modified: 2026-09-10
  * @since 1.0.0
  */
 class LevelCanvasTest {
@@ -65,11 +71,33 @@ class LevelCanvasTest {
     }
 
     @Test
-    @DisplayName("A press stamps the armed tile into the cell under the pointer")
-    void testStampAt_withArmedTile_PlacesItInTheCellUnderThePointer() {
+    @DisplayName("A press selects the cell under the pointer and stamps nothing")
+    void testMousePressed_withArmedTile_SelectsTheCellAndLeavesEveryLayerFree() {
         canvas.setArmedTile(tile);
 
         pressAt(9 * CELL_SIZE + 10, 6 * CELL_SIZE + 10);
+
+        assertAll(
+                () -> assertEquals(new Point(9, 6), canvas.getSelectedCell().orElseThrow()),
+                () -> assertEquals(0, canvas.countPlacedTiles()),
+                () -> assertTrue(canvas.getArmedTile().isPresent())
+        );
+    }
+
+    @Test
+    @DisplayName("A press outside the grid selects no cell")
+    void testMousePressed_withPointOutsideTheGrid_SelectsNoCell() {
+        pressAt(11 * CELL_SIZE, 2 * CELL_SIZE);
+
+        assertTrue(canvas.getSelectedCell().isEmpty());
+    }
+
+    @Test
+    @DisplayName("A stamp writes the armed tile into the cell under the pointer")
+    void testStampHoveredCell_withArmedTile_PlacesItInTheCellUnderThePointer() {
+        canvas.setArmedTile(tile);
+
+        stampAt(9 * CELL_SIZE + 10, 6 * CELL_SIZE + 10);
 
         var placed = canvas.getLayer(0).readTile(6, 9);
 
@@ -82,31 +110,31 @@ class LevelCanvasTest {
     }
 
     @Test
-    @DisplayName("A press with nothing armed leaves every layer free")
-    void testStampAt_withNoArmedTile_LeavesEveryLayerFree() {
-        pressAt(3 * CELL_SIZE, 3 * CELL_SIZE);
+    @DisplayName("A stamp with nothing armed leaves every layer free")
+    void testStampHoveredCell_withNothingArmed_LeavesEveryLayerFree() {
+        stampAt(3 * CELL_SIZE, 3 * CELL_SIZE);
 
         assertEquals(0, canvas.countPlacedTiles());
     }
 
     @ParameterizedTest
     @CsvSource({"-5, 100", "100, -5", "700, 100", "100, 700"})
-    @DisplayName("A press outside the grid leaves every layer free")
-    void testStampAt_withPointOutsideTheGrid_LeavesEveryLayerFree(int x, int y) {
+    @DisplayName("A stamp with the pointer away from the grid leaves every layer free")
+    void testStampHoveredCell_withPointerOutsideTheGrid_LeavesEveryLayerFree(int x, int y) {
         canvas.setArmedTile(tile);
 
-        pressAt(x, y);
+        stampAt(x, y);
 
         assertEquals(0, canvas.countPlacedTiles());
     }
 
     @Test
-    @DisplayName("A press writes to the active layer and leaves the others free")
+    @DisplayName("A stamp writes to the active layer and leaves the others free")
     void testSetActiveLayer_withSecondLayer_PlacesTheStampThere() {
         canvas.setArmedTile(tile);
         canvas.setActiveLayer(3);
 
-        pressAt(2 * CELL_SIZE, 2 * CELL_SIZE);
+        stampAt(2 * CELL_SIZE, 2 * CELL_SIZE);
 
         assertAll(
                 () -> assertTrue(canvas.getLayer(3).readTile(2, 2).isPresent()),
@@ -116,15 +144,15 @@ class LevelCanvasTest {
     }
 
     @Test
-    @DisplayName("Two presses on one cell replace the tile rather than adding one")
-    void testStampAt_withTwoPressesOnOneCell_ReplacesTheTile() {
+    @DisplayName("Two stamps on one cell replace the tile rather than adding one")
+    void testStampHoveredCell_withTwoStampsOnOneCell_ReplacesTheTile() {
         var replacement = new TileSource(new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB), TILESET, 1, 2);
 
         canvas.setArmedTile(tile);
-        pressAt(CELL_SIZE, CELL_SIZE);
+        stampAt(CELL_SIZE, CELL_SIZE);
 
         canvas.setArmedTile(replacement);
-        pressAt(CELL_SIZE, CELL_SIZE);
+        stampAt(CELL_SIZE, CELL_SIZE);
 
         assertAll(
                 () -> assertEquals(1, canvas.countPlacedTiles()),
@@ -133,10 +161,35 @@ class LevelCanvasTest {
     }
 
     @Test
+    @DisplayName("A stamp of armed metadata writes it onto the tile already in the cell")
+    void testStampHoveredCell_withArmedMetadataOverAPlacedTile_WritesItOntoThatTile() {
+        canvas.setArmedTile(tile);
+        stampAt(4 * CELL_SIZE, 4 * CELL_SIZE);
+
+        canvas.setArmedMetadata(new TileData(true));
+        stampAt(4 * CELL_SIZE, 4 * CELL_SIZE);
+
+        assertTrue(canvas.getLayer(0).readMetadata(4, 4).isTraversable());
+    }
+
+    @Test
+    @DisplayName("A stamp of armed metadata over a free cell leaves that cell free")
+    void testStampHoveredCell_withArmedMetadataOverAFreeCell_LeavesThatCellFree() {
+        canvas.setArmedMetadata(new TileData(true));
+
+        stampAt(4 * CELL_SIZE, 4 * CELL_SIZE);
+
+        assertAll(
+                () -> assertEquals(0, canvas.countPlacedTiles()),
+                () -> assertFalse(canvas.getLayer(0).readMetadata(4, 4).isTraversable())
+        );
+    }
+
+    @Test
     @DisplayName("A grid grows and keeps every tile where it stands")
     void testResizeGrid_withLargerSize_KeepsEveryPlacedTile() {
         canvas.setArmedTile(tile);
-        pressAt(2 * CELL_SIZE, 2 * CELL_SIZE);
+        stampAt(2 * CELL_SIZE, 2 * CELL_SIZE);
 
         canvas.resizeGrid(12, 12);
 
@@ -152,7 +205,7 @@ class LevelCanvasTest {
     void testCanResizeTo_withSizeDroppingATile_ReturnsFalse() {
         canvas.setArmedTile(tile);
         canvas.setActiveLayer(2);
-        pressAt(8 * CELL_SIZE, 8 * CELL_SIZE);
+        stampAt(8 * CELL_SIZE, 8 * CELL_SIZE);
 
         assertAll(
                 () -> assertFalse(canvas.canResizeTo(5, 5)),
@@ -178,7 +231,7 @@ class LevelCanvasTest {
     @DisplayName("A right press frees the cell under the pointer")
     void testEraseAt_withRightPressOverAPlacedTile_FreesThatCell() {
         canvas.setArmedTile(tile);
-        pressAt(4 * CELL_SIZE + 10, 7 * CELL_SIZE + 10);
+        stampAt(4 * CELL_SIZE + 10, 7 * CELL_SIZE + 10);
 
         rightPressAt(4 * CELL_SIZE + 20, 7 * CELL_SIZE + 20);
 
@@ -200,10 +253,10 @@ class LevelCanvasTest {
     @DisplayName("A right press frees the active layer and leaves the tile below it")
     void testEraseAt_withOneTilePerLayer_FreesTheActiveLayerAlone() {
         canvas.setArmedTile(tile);
-        pressAt(5 * CELL_SIZE, 5 * CELL_SIZE);
+        stampAt(5 * CELL_SIZE, 5 * CELL_SIZE);
 
         canvas.setActiveLayer(2);
-        pressAt(5 * CELL_SIZE, 5 * CELL_SIZE);
+        stampAt(5 * CELL_SIZE, 5 * CELL_SIZE);
 
         rightPressAt(5 * CELL_SIZE, 5 * CELL_SIZE);
 
@@ -219,7 +272,7 @@ class LevelCanvasTest {
     @DisplayName("A right press outside the grid keeps every placed tile")
     void testEraseAt_withPointOutsideTheGrid_KeepsEveryPlacedTile(int x, int y) {
         canvas.setArmedTile(tile);
-        pressAt(2 * CELL_SIZE, 2 * CELL_SIZE);
+        stampAt(2 * CELL_SIZE, 2 * CELL_SIZE);
 
         rightPressAt(x, y);
 
@@ -227,13 +280,13 @@ class LevelCanvasTest {
     }
 
     @Test
-    @DisplayName("A right press keeps the armed tile, so the next left press stamps again")
+    @DisplayName("A right press keeps the armed tile, so the next stamp lands again")
     void testEraseAt_withArmedTile_KeepsItArmed() {
         canvas.setArmedTile(tile);
-        pressAt(CELL_SIZE, CELL_SIZE);
+        stampAt(CELL_SIZE, CELL_SIZE);
 
         rightPressAt(CELL_SIZE, CELL_SIZE);
-        pressAt(CELL_SIZE, CELL_SIZE);
+        stampAt(CELL_SIZE, CELL_SIZE);
 
         assertAll(
                 () -> assertTrue(canvas.getArmedTile().isPresent()),
@@ -245,7 +298,25 @@ class LevelCanvasTest {
     //                                       Helper Methods                                       \\
     // ========================================================================================== \\
     /**
-     * Dispatches a press at a point in component pixels, which is the gesture that stamps a tile.
+     * Moves the pointer to a point in component pixels and stamps there, which is the pair of steps that a user
+     * performs with the pointer and the E key.
+     */
+    private void stampAt(int x, int y) {
+        moveTo(x, y);
+        canvas.stampHoveredCell();
+    }
+
+    /**
+     * Dispatches a move to a point in component pixels, which is what tells the canvas where the pointer rests.
+     */
+    private void moveTo(int x, int y) {
+        canvas.dispatchEvent(new MouseEvent(
+                canvas, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, x, y, 0, false
+        ));
+    }
+
+    /**
+     * Dispatches a press at a point in component pixels, which is the gesture that selects a cell.
      */
     private void pressAt(int x, int y) {
         canvas.dispatchEvent(new MouseEvent(

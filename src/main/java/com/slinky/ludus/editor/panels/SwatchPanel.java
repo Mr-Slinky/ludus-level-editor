@@ -29,7 +29,8 @@ import javax.swing.SwingConstants;
  * <p>
  * One tile stays selected across the whole deck. A press on the visible swatch clears the selection on every
  * other swatch, so {@link #getSelection()} answers for the whole deck, and a selection made on one tileset
- * survives flipping away and back.
+ * survives flipping away and back. A second press on the selected tile clears it, which leaves the deck with
+ * no tile selected anywhere in it.
  * <p>
  * {@link #readSelectedTile()} returns that selection as a {@link TileSource}, together with the {@link TileSet}
  * that the swatch it was selected on loaded its image from. A tile therefore identifies its own tileset by path,
@@ -218,7 +219,7 @@ public class SwatchPanel extends JPanel {
     }
 
     /**
-     * Registers a listener that receives the selected tile every time a press changes it.
+     * Registers a listener that runs every time a press changes the deck's selection, in either direction.
      *
      * @param listener the listener to notify
      */
@@ -230,7 +231,7 @@ public class SwatchPanel extends JPanel {
     //                                       Helper Methods                                       \\
     // ========================================================================================== \\
     private void addSwatch(Swatch swatch, String name) {
-        swatch.addSelectionListener(selection -> handleSwatchSelection(swatch, selection));
+        swatch.addSelectionListener(() -> handleSwatchSelection(swatch));
 
         swatches.add(swatch);
         names.add(name);
@@ -239,9 +240,9 @@ public class SwatchPanel extends JPanel {
 
     /**
      * Clears every swatch other than the one just pressed, so one tile stays selected across the deck, then
-     * passes the selection on. Each clear stays silent, so none of them re-enters this method.
+     * passes the change on. Each clear stays silent, so none of them re-enters this method.
      */
-    private void handleSwatchSelection(Swatch source, Point selection) {
+    private void handleSwatchSelection(Swatch source) {
         for (var swatch : swatches) {
             if (swatch != source) {
                 swatch.clearSelection();
@@ -249,7 +250,7 @@ public class SwatchPanel extends JPanel {
         }
 
         for (var listener : listeners) {
-            listener.handleSelection(selection);
+            listener.handleSelectionChange();
         }
     }
 

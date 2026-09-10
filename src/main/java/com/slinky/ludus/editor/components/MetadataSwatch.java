@@ -20,17 +20,18 @@ import javax.swing.ToolTipManager;
  * A press selects one block, and {@link #readSelectedMetadata()} returns the {@link TileData} that the selected
  * block stamps. While the pointer rests over a block, the swatch shows that block's description as a tooltip.
  * <p>
- * <b>Arming a canvas from the selected block</b>
+ * <b>Reading the block that a press selects</b>
  * <p>
- * A caller builds a swatch of 64 pixel blocks, and arms a canvas with each block that a press selects:
+ * A caller builds a swatch of 64 pixel blocks, and reads the selection back after each press:
  * <pre>{@code
  * var metadata = new MetadataSwatch(64);
- *
- * metadata.addSelectionListener(_ -> metadata.readSelectedMetadata().ifPresent(canvas::setArmedMetadata));
  *
  * // after a press on the "TR" block
  * metadata.getSelection();                                // Optional[java.awt.Point[x=0,y=0]]
  * metadata.readSelectedMetadata().get().isTraversable();  // true
+ *
+ * // after a second press on that same block
+ * metadata.readSelectedMetadata();                        // Optional.empty
  * }</pre>
  *
  * @author Kheagen Haskins

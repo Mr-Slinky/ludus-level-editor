@@ -27,10 +27,13 @@ import javax.swing.*;
  * the canvas, so a tile occupies the same number of pixels wherever it appears.
  * <p>
  * A {@link MenuBar} at the left end of the title bar switches the left edge between two swatches: the
- * {@link SwatchPanel} of tilesets, and a {@link MetadataSwatch} of metadata blocks. A press on either swatch
- * arms its selection on the canvas, and a press on the canvas stamps it. Switching swatches re-arms the canvas
- * with the selection on the swatch now shown, and disarms it where that swatch has nothing selected, so a press
- * always stamps from the swatch on screen.
+ * {@link SwatchPanel} of tilesets, and a {@link MetadataSwatch} of metadata blocks. One selection stands across
+ * the two of them, so picking a tile clears whatever the metadata swatch had picked, and picking a metadata
+ * block clears the tile. The canvas is armed with that one selection, and a second press on the piece already
+ * picked clears it and disarms the canvas.
+ * <p>
+ * A press on the canvas selects the cell under the pointer and alters no layer. The E key stamps the armed
+ * piece into the cell under the pointer, which is the cell that the canvas outlines while anything is armed.
  * <p>
  * A {@link MetadataView} under the swatches shows the metadata of the cell selected on the canvas, and updates
  * whenever the canvas reports a change to its selection.
@@ -234,19 +237,49 @@ public class RootPanel extends JPanel {
     }
 
     /**
-     * Arms the canvas with the tile that a press selects, so the canvas learns the selection without knowing
-     * which component produced it.
+     * Clears the metadata swatch each time a press changes what the tile swatch has selected, then arms the
+     * canvas with the result, so one selection stands across the two swatches.
      */
     private void armCanvasOnSelection() {
-        swatchPanel.addSelectionListener(_ -> swatchPanel.readSelectedTile().ifPresent(levelCanvas::setArmedTile));
+        swatchPanel.addSelectionListener(() -> {
+            metadataSwatch.clearSelection();
+            applyArmedStamp();
+        });
     }
 
     /**
-     * Arms the canvas with the metadata block that a press selects, in the same way that
-     * {@link #armCanvasOnSelection()} arms it with a tile.
+     * Clears the tile swatch each time a press changes what the metadata swatch has selected, in the same way
+     * that {@link #armCanvasOnSelection()} clears the metadata swatch.
      */
     private void armCanvasOnMetadataSelection() {
-        metadataSwatch.addSelectionListener(_ -> metadataSwatch.readSelectedMetadata().ifPresent(levelCanvas::setArmedMetadata));
+        metadataSwatch.addSelectionListener(() -> {
+            swatchPanel.clearSelection();
+            applyArmedStamp();
+        });
+    }
+
+    /**
+     * Arms the canvas with whichever swatch has a selection, and disarms it where neither of them has one. One
+     * swatch is cleared before this runs, so the canvas is armed with the one piece that a user has picked out,
+     * and a press of E stamps that piece alone.
+     */
+    private void applyArmedStamp() {
+        var tile = swatchPanel.readSelectedTile();
+
+        if (tile.isPresent()) {
+            levelCanvas.setArmedTile(tile.get());
+            return;
+        }
+
+        var data = metadataSwatch.readSelectedMetadata();
+
+        if (data.isPresent()) {
+            levelCanvas.setArmedMetadata(data.get());
+            return;
+        }
+
+        levelCanvas.clearArmedTile();
+        levelCanvas.clearArmedMetadata();
     }
 
     /**
@@ -283,21 +316,18 @@ public class RootPanel extends JPanel {
     }
 
     /**
-     * Shows the tile deck and re-arms the tile selected on it. With no tile selected, the canvas disarms, so a
-     * press never stamps metadata from a swatch that is out of sight.
+     * Shows the tile swatch. One selection stands across both swatches, so the card on screen decides what a
+     * user can pick next and leaves what is armed as it stands.
      */
     private void showTileSwatch() {
         swatchDeck.show(swatchCards, TILES_CARD);
-        swatchPanel.readSelectedTile().ifPresentOrElse(levelCanvas::setArmedTile, levelCanvas::clearArmedMetadata);
     }
 
     /**
-     * Shows the metadata swatch and re-arms the block selected on it. With no block selected, the canvas disarms,
-     * so a press never stamps a tile from a swatch that is out of sight.
+     * Shows the metadata swatch, in the same way that {@link #showTileSwatch()} shows the tile swatch.
      */
     private void showMetadataSwatch() {
         swatchDeck.show(swatchCards, METADATA_CARD);
-        metadataSwatch.readSelectedMetadata().ifPresentOrElse(levelCanvas::setArmedMetadata, levelCanvas::clearArmedTile);
     }
 
     /**
