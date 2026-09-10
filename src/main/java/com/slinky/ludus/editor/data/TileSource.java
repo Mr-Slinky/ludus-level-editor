@@ -5,6 +5,17 @@ import java.awt.image.BufferedImage;
 /**
  * The image that one cell draws, together with the {@link TileSet} that it was cut from and the cell that it
  * occupies inside that tileset.
+ * <p>
+ * <b>Describing the art of one cell</b>
+ * <p>
+ * A caller cuts one tile out of a tileset and reads its source cell back:
+ * <pre>{@code
+ * var tileset = new TileSet("/assets/terrain/tilesets/tilemap_color1.png", 64);
+ * var grass   = new TileSource(art, tileset, 1, 1);
+ *
+ * grass.tileset().path();  // "/assets/terrain/tilesets/tilemap_color1.png"
+ * grass.sourceRow();       // 1
+ * }</pre>
  *
  * @param image        the pixels to draw, at the tileset's own resolution
  * @param tileset      the tileset that this tile was cut from

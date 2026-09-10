@@ -4,6 +4,9 @@ import com.slinky.ludus.editor.components.LevelCanvas;
 import com.slinky.ludus.editor.data.JsonUtil;
 import com.slinky.ludus.editor.data.TileGrid;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 
@@ -11,8 +14,8 @@ import java.util.ArrayList;
  * Converts a {@link LevelCanvas} to the JSON that Ludus loads.
  * <p>
  * {@link #buildLevelJson(LevelCanvas)} performs the whole conversion and returns the text, so a caller that
- * wants the JSON on its own calls that alone. {@link #saveLevel(LevelCanvas, Path)} calls it and puts the
- * result somewhere. {@link JsonUtil#toJson(int, int, java.util.Collection)} states the format that both
+ * wants the JSON on its own calls that alone. {@link #saveLevel(LevelCanvas, Path)} calls it and writes the
+ * result to a file. {@link JsonUtil#toJson(int, int, java.util.Collection)} states the format that both
  * produce.
  * <p>
  * <b>Converting a canvas that a user has painted</b>
@@ -29,7 +32,7 @@ import java.util.ArrayList;
  * @author Kheagen Haskins
  * @version 1.0.0
  *         <p>
- *         Last modified: 2026-09-08
+ *         Last modified: 2026-09-10
  * @since 1.0.0
  */
 final class LevelWriter {
@@ -59,18 +62,24 @@ final class LevelWriter {
     }
 
     /**
-     * Converts a canvas and hands the JSON on to the given file.
+     * Converts a canvas and writes the JSON to the given file in UTF-8, creating the file where the directory
+     * holding it already exists, and replacing the contents of a file that is already there.
      *
      * @param levelCanvas the canvas to convert
      * @param path        the file to write
      *
      * @return the JSON that {@link #buildLevelJson(LevelCanvas)} produced
+     *
+     * @throws UncheckedIOException if writing the file fails
      */
     public static String saveLevel(LevelCanvas levelCanvas, Path path) {
         var json = buildLevelJson(levelCanvas);
 
-        System.out.println(json);
-        // TODO: write to file (writing to a file will not be tested)
+        try {
+            Files.writeString(path, json);
+        } catch (IOException e) {
+            throw new UncheckedIOException(String.format("Failed to write the level to '%s'", path), e);
+        }
 
         return json;
     }

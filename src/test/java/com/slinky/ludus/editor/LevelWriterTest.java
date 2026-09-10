@@ -27,8 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>
  * The test that matters most here is
  * {@link #testBuildLevelJson_withTwoOfFiveTilesetsPainted_ReturnsThoseTwoAlone()}. A deck loads five tilesets,
- * a user paints from two, and the file lists those two. An earlier version of this editor wrote all five and
- * indexed the tiles against the deck, so a level referred to art that it never drew.
+ * a user paints from two, and the file lists those two, with each tile's index resolving against that list.
  *
  * @author Claude Code
  * @version 1.0.0

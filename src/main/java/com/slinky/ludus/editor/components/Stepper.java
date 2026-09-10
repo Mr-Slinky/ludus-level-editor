@@ -25,9 +25,9 @@ import javax.swing.SwingConstants;
  * end of its travel, so the caption and the two buttons state both the current value and how much room is left
  * in either direction.
  * <p>
- * The three of them sit inside a capsule that this control fills and outlines itself, which groups them as one
- * thing. The caption divides in two: the name draws in a muted tone, and the value draws beside it in the accent
- * that a palette gives to a chosen value, so the number a user is steering reads at a glance.
+ * This control fills and outlines a capsule around all three, which groups them as one thing.
+ * The caption divides in two: the name draws in a muted tone, and the value draws beside it in the accent that
+ * a palette gives to a chosen value, so the number stands out from the name beside it.
  * <p>
  * The capsule lightens and its outline takes an accent while the pointer stands anywhere over the control,
  * either button included, so the whole group answers a hover rather than the one part under the pointer.
@@ -60,8 +60,8 @@ public class Stepper extends JPanel {
     // ========================================================================================== \\
     //                                           Static                                           \\
     // ========================================================================================== \\
-    // the control bar behind this control is the palette's chrome, so the capsule sinks below it rather than
-    // rising above it, which is the direction that reads at the small difference between the two tones
+    // the control bar behind this control fills with the palette's chrome, so the capsule takes the darker
+    // tone and appears sunk into the bar rather than raised off it
     private static final Color WELL          = Palette.getActive().getDark();
     private static final Color WELL_HOVER    = Palette.blend(Palette.getActive().getDark(), Palette.getActive().getAccent3(), 0.14f);
     private static final Color OUTLINE       = Palette.withAlpha(Palette.getActive().getLight(), 38);

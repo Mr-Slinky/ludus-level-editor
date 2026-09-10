@@ -8,7 +8,20 @@ import java.util.List;
 import java.util.TreeSet;
 
 /**
+ * Converts the layers of a level to the JSON that Ludus loads.
+ * <p>
+ * {@link #toJson(int, int, Collection)} builds a whole level as one {@link JsonObject} and states the format in
+ * full. {@link #writePrettyString(JsonElement)} turns that object into the text of a level file.
+ * <p>
+ * <b>Writing a level out</b>
+ * <p>
+ * A caller converts every layer of a canvas at once, then asks for the text:
+ * <pre>{@code
+ * var level = JsonUtil.toJson(10, 10, layers);
+ * var text  = JsonUtil.writePrettyString(level);
  *
+ * // text states 10 rows, 10 columns, the tilesets that those layers draw from, and one entry per layer
+ * }</pre>
  *
  * @author Kheagen Haskins
  * @version 1.0.0
@@ -29,14 +42,20 @@ public class JsonUtil {
     // ========================================================================================== \\
     //                                        API Methods                                         \\
     // ========================================================================================== \\
+    /**
+     * Converts a JSON object to the text of a level file, indented and with every null written out.
+     *
+     * @param json the level to write, as {@link #toJson(int, int, Collection)} returns it
+     * @return that level as pretty printed JSON
+     */
     public static String writePrettyString(JsonElement json) {
         return PRINTER.toJson(json);
     }
 
     /**
-     * Writes:
+     * Builds a whole level, which takes this form:
      * <pre>{@code
-     *  {
+     * {
      *   "rows": 10,
      *   "columns": 10,
      *   "tilesets": [
@@ -111,18 +130,17 @@ public class JsonUtil {
     }
 
     /**
-     * Writes:
+     * Builds one layer, which takes this form:
      * <pre>{@code
-     *  {
-     *      "tiles": [
-     *          { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
-     *            "data": { "traversable": true } },
-     *          { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
-     *            "data": { "traversable": false } }
-     *      ]
-     *  }
-     *  }
-     *  </pre>
+     * {
+     *   "tiles": [
+     *     { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
+     *       "data": { "traversable": true } },
+     *     { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
+     *       "data": { "traversable": false } }
+     *   ]
+     * }
+     * }</pre>
      *
      * @param tiles    the layer to write
      * @param tilesets the tilesets of the level, in the order that the file lists them

@@ -16,7 +16,6 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
-import java.awt.GridBagLayout;
 import java.nio.file.Path;
 
 import javax.swing.*;
@@ -45,9 +44,9 @@ import javax.swing.*;
  * <p>
  * Each side stands on a surface that fills the height of the window. On the left, the metadata view takes its
  * own height at the bottom of the surface and the visible swatch fills the space above it, so a tileset shorter
- * than the window leaves the swatch's own ground running down to the metadata view. The canvas
- * sits in a {@link GridBagLayout} instead, which lays a single child out at its preferred size and centres it,
- * so growing the window leaves the grid in the middle of the room that it was given.
+ * than the window leaves the surface itself running down to the metadata view. On the right, the canvas stands
+ * on a {@link CanvasStage}, which centres the grid while the window has room for it and scrolls to the grid
+ * once it outgrows that room.
  * <p>
  * A margin of {@value #PADDING} pixels surrounds both sides, and the same distance separates one from the other,
  * so the two of them contribute {@code 3 * PADDING} pixels to the window's width and {@code 2 * PADDING} to its
@@ -77,12 +76,19 @@ public class RootPanel extends JPanel {
     // ========================================================================================== \\
     //                                           Static                                           \\
     // ========================================================================================== \\
+    /** The width and height in pixels of one cell, on the canvas and on every swatch alike. */
     public static final int CELL_SIZE   = 64;
+
+    /** The tallest grid that the canvas accepts, in cells. */
     public static final int MAX_ROWS    = 15;
+
+    /** The widest grid that the canvas accepts, in cells. */
     public static final int MAX_COLUMNS = 15;
 
-    /** The grid that the editor opens on, which a user grows towards the maximum from the control bar. */
+    /** The number of rows that the editor opens on, which a user grows towards {@link #MAX_ROWS}. */
     public static final int DEFAULT_ROWS    = 10;
+
+    /** The number of columns that the editor opens on, which a user grows towards {@link #MAX_COLUMNS}. */
     public static final int DEFAULT_COLUMNS = 10;
 
     /** The distance in pixels between the window edge and either side, and between the two sides. */
@@ -95,7 +101,7 @@ public class RootPanel extends JPanel {
     private static final Color SAVE_FILL = Palette.getActive().getAccent3();
 
     /**
-     * The surface that the deck and the canvas stand on. It lifts less far from the ground than the two bars
+     * The surface that the swatches and the canvas stand on. It lifts less far from the ground than the two bars
      * do, so the window reads at three depths: the ground in the margins, the surfaces on it, and the bars
      * above both.
      */
@@ -220,7 +226,8 @@ public class RootPanel extends JPanel {
 
     /**
      * Hands the canvas to {@link LevelWriter#saveLevel(LevelCanvas, Path)}, which converts it and writes the
-     * result. The save button in the control bar calls this.
+     * result to {@code newLevel.json} in the directory that the editor runs from. The save button in the
+     * control bar calls this.
      */
     private void saveLevel() {
         LevelWriter.saveLevel(levelCanvas, Path.of("newLevel.json"));
@@ -337,8 +344,8 @@ public class RootPanel extends JPanel {
     }
 
     /**
-     * Lays the deck and the canvas out side by side inside the margin, which keeps the margin clear of the title
-     * bar above.
+     * Lays the swatches and the canvas out side by side inside the margin, which keeps the margin clear of the
+     * title bar above.
      */
     private JPanel buildBody() {
         var body = new JPanel(new BorderLayout(PADDING, 0));
@@ -395,9 +402,8 @@ public class RootPanel extends JPanel {
     }
 
     /**
-     * Builds the surface that the canvas stands on, which fills the rest of the body. A {@link CanvasStage}
-     * centres the grid while the window has room for it, and scrolls to it a cell at a time once a step past
-     * {@value #DEFAULT_ROWS} rows or columns grows the grid beyond that room.
+     * Builds the surface that the canvas stands on, which fills the rest of the body. The stage takes
+     * {@value #CELL_SIZE} as its scroll increment, so scrolling moves the grid one cell at a time.
      */
     private CanvasStage buildStage(JPanel content) {
         return new CanvasStage(content, CELL_SIZE);

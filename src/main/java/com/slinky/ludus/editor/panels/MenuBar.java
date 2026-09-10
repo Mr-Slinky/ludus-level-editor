@@ -170,8 +170,8 @@ public class MenuBar extends JPanel {
         }
 
         /**
-         * Returns a width that fits the text plus {@value #SIDE_PADDING} pixels either side, at a height of
-         * {@value #ITEM_HEIGHT} pixels.
+         * Returns a width that fits the text plus {@value MenuBar#SIDE_PADDING} pixels either side, at a height
+         * of {@value MenuBar#ITEM_HEIGHT} pixels.
          */
         @Override
         public Dimension getPreferredSize() {

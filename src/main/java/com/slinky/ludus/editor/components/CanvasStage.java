@@ -25,10 +25,9 @@ import javax.swing.plaf.basic.BasicScrollBarUI;
  * The surface that a {@link LevelCanvas} stands on, which centres the grid while the window has room for it and
  * scrolls to it once the grid outgrows the window.
  * <p>
- * A grid of 15 rows at 64 pixels a cell stands 960 pixels tall, which is taller than most windows leave for it.
- * A canvas states that size as its minimum as well as its preferred size, so a layout short of room clips it
- * rather than shrinking it. This stage gives that case somewhere to go: the grid keeps every pixel, and a user
- * reaches the part off screen by scrolling.
+ * A grid of 15 rows at 64 pixels a cell stands 960 pixels tall. A canvas states that size as its minimum as
+ * well as its preferred size, so a layout with less height than that clips the grid. This stage scrolls
+ * instead, so the grid keeps every pixel and a user reaches the part off screen with the scrollbars.
  * <p>
  * The two scrollbars appear only while they are needed, and they paint as a slim thumb with no arrow buttons in
  * the palette's own tones, so a scrollbar that does appear belongs to the window around it.
@@ -70,8 +69,8 @@ public class CanvasStage extends JScrollPane {
     /**
      * Builds a stage over one component.
      *
-     * @param content        the component to centre and scroll, which is a {@link LevelCanvas} in the editor
-     * @param unitIncrement  the distance in pixels that one turn of a wheel scrolls, which is one cell
+     * @param content        the component to centre and scroll
+     * @param unitIncrement  the distance in pixels that one scroll unit moves the content, which is one cell
      * @throws IllegalArgumentException if the content is null, or if the increment is zero or negative
      */
     public CanvasStage(JComponent content, int unitIncrement) {
@@ -197,14 +196,16 @@ public class CanvasStage extends JScrollPane {
         }
 
         /**
-         * Reports whether a user is holding the thumb, which the superclass tracks but keeps to itself.
+         * Reports whether a user is dragging the thumb, which the scrollbar states through
+         * {@code getValueIsAdjusting()} for as long as a drag lasts.
          */
         private boolean isDragging() {
             return scrollbar.getValueIsAdjusting();
         }
 
         /**
-         * Returns a button of no size, which is how a scrollbar loses its arrows without losing its layout.
+         * Returns a button of zero width and height, which the superclass places at each end of the track,
+         * where it takes up no pixels.
          */
         private static JButton buildHiddenButton() {
             var button = new JButton();

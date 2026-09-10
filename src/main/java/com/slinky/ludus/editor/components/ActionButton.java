@@ -12,8 +12,8 @@ import java.awt.RenderingHints;
 import javax.swing.JButton;
 
 /**
- * A capsule shaped button that paints its own fill, its own glow and its own label, so the look and feel that
- * the platform supplies reaches none of it.
+ * A capsule shaped button that paints its own fill, its own glow and its own label, so it draws the same on
+ * every platform.
  * <p>
  * The fill takes the accent given to the constructor. A halo of that same accent spreads outside the capsule
  * while the pointer is over the button, which lights the control without moving it, and the fill deepens while
@@ -30,7 +30,7 @@ import javax.swing.JButton;
  * save.addActionListener(_ -> writeTheLevel());
  * controlBar.addTrailing(save);
  *
- * // the button reports a height of 30 pixels, and a width that follows its text
+ * // the button reports a height of 36 pixels: the capsule's 30, plus the halo's 3 above and below
  * }</pre>
  *
  * @author Kheagen Haskins

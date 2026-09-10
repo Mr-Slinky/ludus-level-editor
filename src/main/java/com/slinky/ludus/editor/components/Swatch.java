@@ -23,9 +23,8 @@ import javax.swing.JPanel;
 
 /**
  * Takes a single image and turns it into a swatch of selectable tiles, drawn at the image's natural size. The
- * tile width and height determine how many rows and columns this swatch has. An image of dimensions 192x64,
- * cut into 64 pixel tiles, yields one row (64 image height / 64 tile height = 1 row) and three columns
- * (192 image width / 64 tile width = 3 columns).
+ * tile width and height determine how many rows and columns this swatch has. An image 192 pixels wide and 64
+ * tall, cut into 64 pixel tiles, yields one row and three columns.
  * <p>
  * A press selects the one tile under the pointer. {@link #getSelection()} returns that tile in tile
  * coordinates, where {@code x} is the column and {@code y} is the row. A new swatch starts with an empty
@@ -89,6 +88,10 @@ public class Swatch extends JPanel {
      *
      * @param imagePath the path below {@value #ROOT_DIR}, with or without a leading slash
      * @param dimension the tile width and height in pixels
+     * @throws IllegalArgumentException if the classpath contains no resource at that path, if the resource
+     *                                  decodes to no image, if the dimension is zero or negative, or if the
+     *                                  image is smaller than a single tile
+     * @throws UncheckedIOException     if reading the resource fails
      */
     public Swatch(String imagePath, int dimension) {
         this(imagePath, dimension, dimension);
@@ -100,6 +103,10 @@ public class Swatch extends JPanel {
      * @param imagePath  the path below {@value #ROOT_DIR}, with or without a leading slash
      * @param tileWidth  the tile width in pixels
      * @param tileHeight the tile height in pixels
+     * @throws IllegalArgumentException if the classpath contains no resource at that path, if the resource
+     *                                  decodes to no image, if either tile dimension is zero or negative, or
+     *                                  if the image is smaller than a single tile
+     * @throws UncheckedIOException     if reading the resource fails
      */
     public Swatch(String imagePath, int tileWidth, int tileHeight) {
         this(loadImage(imagePath), resolveResourcePath(imagePath), tileWidth, tileHeight);
@@ -110,6 +117,8 @@ public class Swatch extends JPanel {
      *
      * @param image     the image to draw and divide
      * @param dimension the tile width and height in pixels
+     * @throws IllegalArgumentException if the image is null, if the dimension is zero or negative, or if the
+     *                                  image is smaller than a single tile
      */
     public Swatch(BufferedImage image, int dimension) {
         this(image, dimension, dimension);
@@ -151,10 +160,12 @@ public class Swatch extends JPanel {
 
         var size = new Dimension(image.getWidth(), image.getHeight());
 
-        // the minimum matters as much as the preferred size: a layout short of room reads the minimum, and a
-        // swatch without one shrinks away to nothing rather than being clipped
-        // a tileset's transparent cells show this through, so the swatch keeps an edge against the panel
+        // a tileset's transparent cells show the background through, so the swatch keeps an edge against the
+        // panel behind it
         setBackground(BACKGROUND);
+
+        // the minimum matters as much as the preferred size: a layout short of room reads the minimum, and a
+        // swatch that states none shrinks away to nothing instead of being clipped
         setPreferredSize(size);
         setMinimumSize(size);
         installMouseHandling();
@@ -221,7 +232,7 @@ public class Swatch extends JPanel {
     }
 
     /**
-     * Returns the region of the source image the selected tile covers, at the image's own resolution. A swatch
+     * Returns the region of the source image that the selected tile covers, at the image's own resolution. A swatch
      * of 64 pixel tiles returns a 64 by 64 image.
      *
      * @return a view onto the source image, sharing its pixels, and empty while nothing is selected

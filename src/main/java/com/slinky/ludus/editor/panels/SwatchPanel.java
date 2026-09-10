@@ -176,7 +176,7 @@ public class SwatchPanel extends JPanel {
     }
 
     /**
-     * Returns the region of the source image the selection covers, at that image's own resolution.
+     * Returns the region of the source image that the selection covers, at that image's own resolution.
      *
      * @return the selected pixels, and empty while no swatch in the deck has a selection
      */
