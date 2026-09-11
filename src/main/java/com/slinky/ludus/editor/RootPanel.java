@@ -1,9 +1,9 @@
 package com.slinky.ludus.editor;
 
-import com.slinky.ludus.editor.components.ActionButton;
 import com.slinky.ludus.editor.components.CanvasStage;
 import com.slinky.ludus.editor.components.LevelCanvas;
 import com.slinky.ludus.editor.components.MetadataSwatch;
+import com.slinky.ludus.editor.components.SpriteButton;
 import com.slinky.ludus.editor.components.Stepper;
 import com.slinky.ludus.editor.data.Palette;
 import com.slinky.ludus.editor.panels.ControlBar;
@@ -99,9 +99,6 @@ public class RootPanel extends JPanel {
 
     private static final Color GROUND      = Palette.getActive().getDark();
     private static final Color WINDOW_EDGE = Palette.withAlpha(Palette.getActive().getLight(), 40);
-
-    /** The accent that a palette reserves for the action writing a file, which the save button fills with. */
-    private static final Color SAVE_FILL = Palette.getActive().getAccent3();
 
     /**
      * The surface that the swatches and the canvas stand on. It lifts less far from the ground than the two bars
@@ -362,11 +359,11 @@ public class RootPanel extends JPanel {
     }
 
     /**
-     * Builds the save button in the accent that a palette reserves for the save action, which makes it the one
-     * control in the bar that a user picks out by colour.
+     * Builds the save button from the large blue artwork in the interface pack, which makes it the one control
+     * in the bar that a user picks out by size as well as by colour.
      */
-    private ActionButton buildSaveButton() {
-        var saveButton = new ActionButton("Save", SAVE_FILL);
+    private SpriteButton buildSaveButton() {
+        var saveButton = new SpriteButton("Save", SpriteButton.Skin.BIG_BLUE);
 
         saveButton.addActionListener(_ -> saveLevel());
 
