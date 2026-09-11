@@ -1,10 +1,7 @@
 package com.slinky.ludus.editor.components;
 
-import com.slinky.ludus.editor.data.Palette;
-
-import java.awt.Color;
+import java.awt.AlphaComposite;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -24,16 +21,17 @@ import javax.swing.JButton;
  * and stretches the centre across what remains. Interpolation is set to nearest neighbour, so the pixels stay
  * square wherever a piece stretches.
  * <p>
- * The smallest size that a skin composes at is twice its cell size in each direction, which is the point at
- * which the four corners meet. {@link #getPreferredSize()} returns that size, widened to fit the label together
- * with {@value #SIDE_PADDING} pixels either side.
+ * An {@link Icon} from the same pack draws centred over that artwork, and it moves down by
+ * {@link Skin#getPressedDrop()} pixels while a user holds the button down, which keeps it on the face of the
+ * pressed sheet.
  * <p>
- * The label draws centred, and it moves down by {@link Skin#getPressedDrop()} pixels while a user holds the
- * button down, which keeps it on the face of the pressed artwork.
+ * The smallest size that a skin composes at is twice its cell size in each direction, which is the point at
+ * which the four corners meet. {@link #getPreferredSize()} returns that size, widened to fit the icon together
+ * with {@value #SIDE_PADDING} pixels either side.
  * <p>
  * <b>Putting a save action on a panel</b>
  * <pre>{@code
- * var save = new SpriteButton("Save", SpriteButton.Skin.BIG_BLUE);
+ * var save = new SpriteButton(SpriteButton.Icon.SHIELD, SpriteButton.Skin.BIG_BLUE);
  *
  * save.addActionListener(_ -> writeTheLevel());
  * panel.add(save);
@@ -44,7 +42,7 @@ import javax.swing.JButton;
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-10
+ *          Last modified: 2026-09-11
  * @since 1.0.0
  */
 public class SpriteButton extends JButton {
@@ -52,16 +50,14 @@ public class SpriteButton extends JButton {
     // ========================================================================================== \\
     //                                           Static                                           \\
     // ========================================================================================== \\
-    /** The room in pixels that {@link #getPreferredSize()} leaves between the label and either end. */
+    /** The room in pixels that {@link #getPreferredSize()} leaves between the icon and either end. */
     public static final int SIDE_PADDING = 24;
 
-    private static final Color LABEL          = Palette.getActive().getLight();
-    private static final Color LABEL_DISABLED = Palette.withAlpha(Palette.getActive().getLight(), 70);
+    /** The opacity from 0 to 255 that the icon draws at while the button is disabled. */
+    private static final int DISABLED_ALPHA = 70;
 
     /** The number of pieces across one sheet, which equals the number down it. */
     private static final int SLICES = 3;
-
-    private static final float LABEL_SIZE = 14f;
 
     // ========================================================================================== \\
     //                                       Nested Classes                                       \\
@@ -156,35 +152,74 @@ public class SpriteButton extends JButton {
 
     }
 
+    /**
+     * One emblem from the interface pack, which a button draws on its face.
+     * <p>
+     * Every icon in the pack measures 64 pixels square, which fits inside the face of the smallest button that
+     * any {@link Skin} composes.
+     * <p>
+     * Each constant reads its image from the classpath on the first call that needs it and keeps the image it
+     * read, so the artwork decodes once however many buttons share the icon.
+     */
+    public enum Icon {
+
+        /** A shield, quartered white over blue. */
+        SHIELD("/ui-elements/icons/icon_06.png");
+
+        private final String path;
+
+        private BufferedImage image;
+
+        Icon(String path) {
+            this.path = path;
+        }
+
+        /**
+         * Returns the artwork, reading it from the classpath on the first call.
+         *
+         * @return the decoded image
+         * @throws IllegalArgumentException if the classpath contains no resource at that path, or the resource
+         *                                  decodes to no image
+         * @throws UncheckedIOException     if reading the resource fails
+         */
+        public BufferedImage readImage() {
+            if (image == null) {
+                image = Swatch.loadImage(path);
+            }
+
+            return image;
+        }
+
+    }
+
     // ========================================================================================== \\
     //                                           Fields                                           \\
     // ========================================================================================== \\
     private final Skin skin;
+    private final Icon icon;
 
     // ========================================================================================== \\
     //                                       Constructor(s)                                       \\
     // ========================================================================================== \\
     /**
-     * Builds a button that draws from the given skin.
+     * Builds a button that draws the given icon over the given artwork.
      *
-     * @param text the label to draw
+     * @param icon the emblem to draw on the face
      * @param skin the pair of sheets that the button draws from
-     * @throws IllegalArgumentException if the text or the skin is null
+     * @throws IllegalArgumentException if the icon or the skin is null
      */
-    public SpriteButton(String text, Skin skin) {
-        if (text == null) {
-            throw new IllegalArgumentException("A sprite button requires a label");
+    public SpriteButton(Icon icon, Skin skin) {
+        if (icon == null) {
+            throw new IllegalArgumentException("A sprite button requires an icon");
         }
 
         if (skin == null) {
             throw new IllegalArgumentException("A sprite button requires a skin");
         }
 
+        this.icon = icon;
         this.skin = skin;
 
-        setText(text);
-        setFont(getFont().deriveFont(Font.BOLD, LABEL_SIZE));
-        setForeground(LABEL);
         setContentAreaFilled(false);
         setBorderPainted(false);
         setFocusPainted(false);
@@ -199,28 +234,31 @@ public class SpriteButton extends JButton {
         return skin;
     }
 
+    /** Returns the emblem that this button draws on its face. */
+    public Icon getSpriteIcon() {
+        return icon;
+    }
+
     // ========================================================================================== \\
     //                                        API Methods                                         \\
     // ========================================================================================== \\
     /**
      * Returns a size twice the skin's cell size in each direction, which is the smallest size that the nine
-     * pieces compose at. The width grows where the label together with {@value #SIDE_PADDING} pixels either
-     * side asks for more than that.
+     * pieces compose at. The width grows where the icon, together with {@value #SIDE_PADDING} pixels either
+     * side, asks for more than that.
      *
      * @return the preferred size in pixels
      */
     @Override
     public Dimension getPreferredSize() {
-        var metrics = getFontMetrics(getFont());
         var minimum = skin.getCellSize() * 2;
-        var width   = Math.max(minimum, metrics.stringWidth(getText()) + SIDE_PADDING * 2);
+        var face    = icon.readImage().getWidth() + SIDE_PADDING * 2;
 
-        return new Dimension(width, minimum);
+        return new Dimension(Math.max(minimum, face), minimum);
     }
 
     /**
-     * Paints the nine pieces of the current sheet, then the label over them. Swing draws the label itself for an
-     * ordinary button, so this draws it here and leaves the superclass alone.
+     * Paints the nine pieces of the current sheet, then the icon over them.
      */
     @Override
     protected void paintComponent(Graphics g) {
@@ -229,10 +267,9 @@ public class SpriteButton extends JButton {
         var canvas = (Graphics2D) g.create();
 
         canvas.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-        canvas.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
         paintSheet(canvas, held ? skin.readPressedSheet() : skin.readRegularSheet());
-        paintLabel(canvas, held ? skin.getPressedDrop() : 0);
+        paintIcon(canvas, held ? skin.getPressedDrop() : 0);
 
         canvas.dispose();
     }
@@ -280,18 +317,20 @@ public class SpriteButton extends JButton {
     }
 
     /**
-     * Draws the label centred in the button, placing it on the font's baseline so that the text centres on its
-     * own height rather than on the space that the font reserves above and below it. The drop moves the label
-     * down with the pressed artwork.
+     * Draws the icon centred in the button at its own size, which every skin's face is wide enough and tall
+     * enough to take. The drop moves the icon down with the pressed artwork, and a disabled button draws it at
+     * an opacity of {@value #DISABLED_ALPHA} in 255.
      */
-    private void paintLabel(Graphics2D canvas, int drop) {
-        var metrics  = canvas.getFontMetrics(getFont());
-        var left     = (getWidth()  - metrics.stringWidth(getText())) / 2;
-        var baseline = (getHeight() - metrics.getHeight()) / 2 + metrics.getAscent() + drop;
+    private void paintIcon(Graphics2D canvas, int drop) {
+        var art  = icon.readImage();
+        var left = (getWidth()  - art.getWidth())  / 2;
+        var top  = (getHeight() - art.getHeight()) / 2 + drop;
 
-        canvas.setFont(getFont());
-        canvas.setColor(isEnabled() ? LABEL : LABEL_DISABLED);
-        canvas.drawString(getText(), left, baseline);
+        if (!isEnabled()) {
+            canvas.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, DISABLED_ALPHA / 255f));
+        }
+
+        canvas.drawImage(art, left, top, null);
     }
 
 }

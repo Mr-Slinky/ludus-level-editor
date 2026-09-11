@@ -359,11 +359,11 @@ public class RootPanel extends JPanel {
     }
 
     /**
-     * Builds the save button from the large blue artwork in the interface pack, which makes it the one control
-     * in the bar that a user picks out by size as well as by colour.
+     * Builds the save button from the large blue artwork in the interface pack, under the shield icon, which
+     * makes it the one control in the bar that a user picks out by size as well as by colour.
      */
     private SpriteButton buildSaveButton() {
-        var saveButton = new SpriteButton("Save", SpriteButton.Skin.BIG_BLUE);
+        var saveButton = new SpriteButton(SpriteButton.Icon.SHIELD, SpriteButton.Skin.BIG_BLUE);
 
         saveButton.addActionListener(_ -> saveLevel());
 
