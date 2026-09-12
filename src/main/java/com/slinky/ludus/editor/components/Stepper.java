@@ -1,6 +1,7 @@
 package com.slinky.ludus.editor.components;
 
 import com.slinky.ludus.editor.data.Palette;
+import com.slinky.ludus.ui.SmallButton;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -20,10 +21,10 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
 /**
- * A pair of chevron buttons either side of a caption, which together choose one whole number out of a range. The
- * down button steps towards the minimum and the up button steps towards the maximum, and each one dims at the
- * end of its travel, so the caption and the two buttons state both the current value and how much room is left
- * in either direction.
+ * A pair of {@link SmallButton} arrows either side of a caption, which together choose one whole number out of a
+ * range. The down arrow steps towards the minimum and the up arrow steps towards the maximum. A button at the
+ * end of its travel is disabled and draws its arrow in grey, so the caption and the two buttons state both the
+ * current value and the room left in either direction.
  * <p>
  * This control fills and outlines a capsule around all three, which groups them as one thing.
  * The caption divides in two: the name draws in a muted tone, and the value draws beside it in the accent that
@@ -52,7 +53,7 @@ import javax.swing.SwingConstants;
  * @author Kheagen Haskins
  * @version 2.0.0
  *          <p>
- *          Last modified: 2026-09-08
+ *          Last modified: 2026-09-12
  * @since 1.0.0
  */
 public class Stepper extends JPanel {
@@ -75,15 +76,18 @@ public class Stepper extends JPanel {
     private static final int NAME_SIZE     = 11;
     private static final int VALUE_SIZE    = 13;
 
+    private static final double POINT_UP   = Math.PI / 2;
+    private static final double POINT_DOWN = 3 * Math.PI / 2;
+
     // ========================================================================================== \\
     //                                           Fields                                           \\
     // ========================================================================================== \\
     private final List<ValueListener> listeners = new ArrayList<>();
 
-    private final ChevronButton down   = new ChevronButton(ChevronButton.Direction.DOWN);
-    private final ChevronButton up     = new ChevronButton(ChevronButton.Direction.UP);
-    private final JLabel        title  = new JLabel("", SwingConstants.RIGHT);
-    private final JLabel        digits = new JLabel("", SwingConstants.CENTER);
+    private final SmallButton down   = SmallButton.blueRound(SmallButton.Symbol.LEFT_ARROW, POINT_DOWN);
+    private final SmallButton up     = SmallButton.blueRound(SmallButton.Symbol.LEFT_ARROW, POINT_UP);
+    private final JLabel      title  = new JLabel("", SwingConstants.RIGHT);
+    private final JLabel      digits = new JLabel("", SwingConstants.CENTER);
 
     private final String name;
     private final int    minimum;
@@ -250,7 +254,7 @@ public class Stepper extends JPanel {
     private void styleLabel(JLabel label, Color colour, int weight, int size, int width) {
         label.setForeground(colour);
         label.setFont(label.getFont().deriveFont(weight, (float) size));
-        label.setPreferredSize(new Dimension(width, down.getDiameter()));
+        label.setPreferredSize(new Dimension(width, down.getPreferredSize().height));
     }
 
     /**

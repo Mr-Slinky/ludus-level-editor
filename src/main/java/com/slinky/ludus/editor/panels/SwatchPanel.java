@@ -1,10 +1,10 @@
 package com.slinky.ludus.editor.panels;
 
-import com.slinky.ludus.editor.components.ChevronButton;
 import com.slinky.ludus.editor.components.Swatch;
 import com.slinky.ludus.editor.data.Palette;
 import com.slinky.ludus.editor.data.TileSource;
 import com.slinky.ludus.editor.data.TileSet;
+import com.slinky.ludus.ui.SmallButton;
 
 import java.awt.Color;
 import java.awt.BorderLayout;
@@ -23,8 +23,8 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
 /**
- * Stacks several {@link Swatch} instances into a deck and shows one at a time, with a back and a forward button
- * either side of a caption stating the name of the visible tileset. Calling {@link #showNext()} on the last
+ * Stacks several {@link Swatch} instances into a deck and shows one at a time, with a back arrow and a forward
+ * arrow either side of a caption stating the name of the visible tileset. Calling {@link #showNext()} on the last
  * swatch shows the first, and calling {@link #showPrevious()} on the first shows the last.
  * <p>
  * One tile stays selected across the whole deck. A press on the visible swatch clears the selection on every
@@ -57,7 +57,7 @@ import javax.swing.SwingConstants;
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-08
+ *          Last modified: 2026-09-12
  * @since 1.0.0
  */
 public class SwatchPanel extends JPanel {
@@ -66,6 +66,9 @@ public class SwatchPanel extends JPanel {
     //                                           Static                                           \\
     // ========================================================================================== \\
     private static final Color GROUND = Palette.getActive().getDark();
+
+    private static final double POINT_LEFT  = 0;
+    private static final double POINT_RIGHT = Math.PI;
 
     // ========================================================================================== \\
     //                                           Fields                                           \\
@@ -255,8 +258,8 @@ public class SwatchPanel extends JPanel {
     }
 
     private JPanel buildNavigationBar() {
-        var previous = new ChevronButton(ChevronButton.Direction.LEFT);
-        var next     = new ChevronButton(ChevronButton.Direction.RIGHT);
+        var previous = SmallButton.blueRound(SmallButton.Symbol.LEFT_ARROW, POINT_LEFT);
+        var next     = SmallButton.blueRound(SmallButton.Symbol.LEFT_ARROW, POINT_RIGHT);
 
         previous.addActionListener(_ -> showPrevious());
         next.addActionListener(_ -> showNext());
