@@ -5,6 +5,7 @@ module com.slinky.ludus.editor {
 
     requires java.desktop;
     requires com.google.gson;
+    requires ludus.ui;
 
     exports com.slinky.ludus.editor;
 
