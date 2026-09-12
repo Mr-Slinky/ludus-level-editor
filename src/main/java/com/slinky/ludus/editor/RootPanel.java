@@ -1,9 +1,7 @@
 package com.slinky.ludus.editor;
 
-import com.slinky.ludus.editor.components.CanvasStage;
 import com.slinky.ludus.editor.components.LevelCanvas;
 import com.slinky.ludus.editor.components.MetadataSwatch;
-import com.slinky.ludus.editor.components.SpriteButton;
 import com.slinky.ludus.editor.components.Stepper;
 import com.slinky.ludus.editor.data.Palette;
 import com.slinky.ludus.editor.panels.ControlBar;
@@ -11,20 +9,25 @@ import com.slinky.ludus.editor.panels.MenuBar;
 import com.slinky.ludus.editor.panels.MetadataView;
 import com.slinky.ludus.editor.panels.SwatchPanel;
 import com.slinky.ludus.editor.panels.TitleBar;
+import com.slinky.ludus.ui.SmallButton;
+import com.slinky.ludus.ui.Surface;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.nio.file.Path;
 
 import javax.swing.*;
 
 /**
  * The window's content, with a {@link TitleBar} across the top, a {@link ControlBar} across the bottom, and the
- * space between them divided between the swatches down the left edge and a {@link LevelCanvas} filling the
- * rest. This panel owns the cell size and the grid maximum, and hands the same cell size to every swatch and to
- * the canvas, so a tile occupies the same number of pixels wherever it appears.
+ * space between them divided between the swatches on the left and a {@link LevelCanvas} on the right. This
+ * panel owns the cell size and the grid maximum, and hands the same cell size to every swatch and to the
+ * canvas, so a tile occupies the same number of pixels wherever it appears.
  * <p>
  * A {@link MenuBar} at the left end of the title bar switches the left edge between two swatches: the
  * {@link SwatchPanel} of tilesets, and a {@link MetadataSwatch} of metadata blocks. One selection stands across
@@ -45,19 +48,25 @@ import javax.swing.*;
  * up towards {@value #MAX_ROWS} by {@value #MAX_COLUMNS}. A step that would drop a placed tile leaves the grid
  * and both captions where they are.
  * <p>
- * Each side stands on a surface that fills the height of the window. On the left, the metadata view takes its
- * own height at the bottom of the surface and the visible swatch fills the space above it, so a tileset shorter
- * than the window leaves the surface itself running down to the metadata view. On the right, the canvas stands
- * on a {@link CanvasStage}, which centres the grid while the window has room for it and scrolls to the grid
- * once it outgrows that room.
+ * The swatches stand on a wooden {@link Surface}, and the canvas stands on a special paper one. Each surface
+ * draws at a set of sizes one middle piece apart, so this panel chooses a size for each of the two, and the
+ * window then takes its own size from them.
  * <p>
- * A margin of {@value #PADDING} pixels surrounds both sides, and the same distance separates one from the other,
- * so the two of them contribute {@code 3 * PADDING} pixels to the window's width and {@code 2 * PADDING} to its
- * height. The title bar and the control bar each span the full width outside that margin, and a single pixel
- * line runs round the whole panel, which is the edge that the window presents once a frame turns its own
- * decoration off.
+ * This panel grows the table one piece at a time until the space inside its frame fits the swatch area, with
+ * {@value #SURFACE_PADDING} pixels between the two. The paper draws one middle piece per grid cell, so a step
+ * of either grid stepper adds or removes one piece, and this panel then packs the window around the size that
+ * results.
+ * <p>
+ * A margin of {@value #PADDING} pixels surrounds both surfaces, and the same distance separates one from the
+ * other, so the two of them contribute {@code 3 * PADDING} pixels to the window's width and {@code 2 * PADDING}
+ * to its height. The two surfaces line up at the top, each at the size it asks for, and the shorter one leaves
+ * the window's ground on show beneath it. The title bar and the control bar each span the full width outside
+ * that margin, and a single pixel line runs round the whole panel, which is the edge that the window presents
+ * once a frame turns its own decoration off.
  * <p>
  * <b>Opening the editor over a deck of tilesets</b>
+ * <p>
+ * A caller builds the panel over the tileset paths, puts it in an undecorated frame, and packs that frame:
  * <pre>{@code
  * var root = new RootPanel(tilesetPaths);
  *
@@ -65,13 +74,13 @@ import javax.swing.*;
  * frame.setContentPane(root);
  * frame.pack();
  *
- * // the canvas takes 10 * 64 by 10 * 64 pixels, and the two bars add their own height above and below
+ * // the grid opens at 10 by 10 cells, and the paper under it draws one middle piece per cell
  * }</pre>
  *
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-10
+ *          Last modified: 2026-09-12
  * @since 1.0.0
  */
 public class RootPanel extends JPanel {
@@ -101,12 +110,11 @@ public class RootPanel extends JPanel {
     private static final Color WINDOW_EDGE = Palette.withAlpha(Palette.getActive().getLight(), 40);
 
     /**
-     * The surface that the swatches and the canvas stand on. It lifts less far from the ground than the two bars
-     * do, so the window reads at three depths: the ground in the margins, the surfaces on it, and the bars
-     * above both.
+     * The thickness in pixels of the frame that the wooden surface draws round its table top, measured from the
+     * art as the top, the left, the bottom and the right. The bottom covers the front edge of the table as well
+     * as the frame, which is why it runs deepest.
      */
-    private static final Color SURFACE      = Palette.blend(Palette.getActive().getDark(), Palette.getActive().getLight(), 0.035f);
-    private static final Color SURFACE_EDGE = Palette.withAlpha(Palette.getActive().getLight(), 22);
+    private static final Insets WOOD_FRAME = new Insets(23, 20, 38, 20);
 
     /**
      * The distance in pixels between the edge of a surface and its content, and between the swatches and the
@@ -131,6 +139,7 @@ public class RootPanel extends JPanel {
 
     private final CardLayout swatchDeck  = new CardLayout();
     private final JPanel     swatchCards = new JPanel(swatchDeck);
+    private final JPanel     paperSlot   = new JPanel(new BorderLayout());
 
     private final Stepper layerStepper;
     private final Stepper rowStepper    = new Stepper("Rows",    1, MAX_ROWS,    DEFAULT_ROWS);
@@ -153,6 +162,7 @@ public class RootPanel extends JPanel {
         this.layerStepper = new Stepper("Layer", 0, levelCanvas.getLayerCount() - 1, 0);
 
         levelCanvas.resizeGrid(DEFAULT_ROWS, DEFAULT_COLUMNS);
+        placeCanvasOnPaper();
 
         armCanvasOnSelection();
         armCanvasOnMetadataSelection();
@@ -351,7 +361,8 @@ public class RootPanel extends JPanel {
     private void applyGridSize(int rows, int columns) {
         if (levelCanvas.canResizeTo(rows, columns)) {
             levelCanvas.resizeGrid(rows, columns);
-            revalidate();
+            placeCanvasOnPaper();
+            fitWindow();
         } else {
             rowStepper.showValue(levelCanvas.getRows());
             columnStepper.showValue(levelCanvas.getColumns());
@@ -359,11 +370,40 @@ public class RootPanel extends JPanel {
     }
 
     /**
-     * Builds the save button from the large blue artwork in the interface pack, under the shield icon, which
-     * makes it the one control in the bar that a user picks out by size as well as by colour.
+     * Replaces the paper under the canvas with a {@link Surface} of one middle piece per grid cell, so the sheet
+     * grows and shrinks with the grid. Adding the canvas to the new paper removes it from the previous one,
+     * since a Swing component has one parent.
      */
-    private SpriteButton buildSaveButton() {
-        var saveButton = new SpriteButton(SpriteButton.Icon.SHIELD, SpriteButton.Skin.BIG_BLUE);
+    private void placeCanvasOnPaper() {
+        var paper = Surface.specialPaper(levelCanvas.getColumns(), levelCanvas.getRows());
+        paper.setLayout(new GridBagLayout());
+        paper.add(levelCanvas);
+
+        paperSlot.removeAll();
+        paperSlot.add(paper, BorderLayout.CENTER);
+    }
+
+    /**
+     * Packs the window around this panel, which sizes it to the room that the two surfaces and the two bars now
+     * ask for. A panel that belongs to no window lays itself out again instead.
+     */
+    private void fitWindow() {
+        var window = SwingUtilities.getWindowAncestor(this);
+
+        if (window == null) {
+            revalidate();
+        } else {
+            window.pack();
+        }
+    }
+
+    /**
+     * Builds the save button as a blue square {@link SmallButton} under the shield icon, and wires a press to
+     * {@link #saveLevel()}.
+     */
+    private SmallButton buildSaveButton() {
+        var saveButton = SmallButton.blueSquare(SmallButton.Symbol.SHIELD, 0);
+        saveButton.setToolTipText("Save Level");
 
         saveButton.addActionListener(_ -> saveLevel());
 
@@ -371,15 +411,22 @@ public class RootPanel extends JPanel {
     }
 
     /**
-     * Lays the swatches and the canvas out side by side inside the margin, which keeps the margin clear of the
-     * title bar above.
+     * Lays the table and the paper side by side inside the margin, each at the size it asks for and aligned at
+     * the top. The paper stands in a slot of its own, so {@link #placeCanvasOnPaper()} swaps one paper for
+     * another and leaves this layout as it is.
      */
     private JPanel buildBody() {
-        var body = new JPanel(new BorderLayout(PADDING, 0));
+        var body = new JPanel(new GridBagLayout());
         body.setBackground(GROUND);
         body.setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING));
-        body.add(buildDock(buildSwatchArea()), BorderLayout.WEST);
-        body.add(buildStage(levelCanvas), BorderLayout.CENTER);
+
+        var place = new GridBagConstraints();
+        place.anchor = GridBagConstraints.NORTH;
+        body.add(buildTable(buildSwatchArea()), place);
+
+        place.insets = new Insets(0, PADDING, 0, 0);
+        paperSlot.setOpaque(false);
+        body.add(paperSlot, place);
 
         return body;
     }
@@ -414,26 +461,36 @@ public class RootPanel extends JPanel {
     }
 
     /**
-     * Builds the surface down the left edge, which runs the full height of the body and surrounds the given
-     * content with a margin of {@value #SURFACE_PADDING} pixels.
+     * Builds the wooden {@link Surface} under the swatch area, at the smallest size whose inside fits that
+     * area.
+     * <p>
+     * The border keeps the content clear of the frame in the art by {@link #WOOD_FRAME}, plus
+     * {@value #SURFACE_PADDING} pixels on every side. Each call to {@code increaseWidth} adds one middle piece
+     * to the width and each call to {@code increaseHeight} adds one to the height, so the two loops step the
+     * table up to the first size that fits.
      */
-    private JPanel buildDock(JPanel content) {
-        var dock = new JPanel(new BorderLayout());
-        dock.setBackground(SURFACE);
-        dock.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(SURFACE_EDGE),
-                BorderFactory.createEmptyBorder(SURFACE_PADDING, SURFACE_PADDING, SURFACE_PADDING, SURFACE_PADDING)));
-        dock.add(content, BorderLayout.CENTER);
+    private Surface buildTable(JPanel content) {
+        var table = Surface.wood(0, 0);
+        table.setLayout(new GridBagLayout());
+        table.setBorder(BorderFactory.createEmptyBorder(
+                WOOD_FRAME.top    + SURFACE_PADDING,
+                WOOD_FRAME.left   + SURFACE_PADDING,
+                WOOD_FRAME.bottom + SURFACE_PADDING,
+                WOOD_FRAME.right  + SURFACE_PADDING));
+        table.add(content);
 
-        return dock;
-    }
+        var needed = content.getPreferredSize();
+        var frame  = table.getInsets();
 
-    /**
-     * Builds the surface that the canvas stands on, which fills the rest of the body. The stage takes
-     * {@value #CELL_SIZE} as its scroll increment, so scrolling moves the grid one cell at a time.
-     */
-    private CanvasStage buildStage(JPanel content) {
-        return new CanvasStage(content, CELL_SIZE);
+        while (table.getPreferredSize().width - frame.left - frame.right < needed.width) {
+            table.increaseWidth();
+        }
+
+        while (table.getPreferredSize().height - frame.top - frame.bottom < needed.height) {
+            table.increaseHeight();
+        }
+
+        return table;
     }
 
 }
