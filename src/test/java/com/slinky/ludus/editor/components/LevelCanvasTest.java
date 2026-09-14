@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.event.InputEvent;
@@ -36,11 +37,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>
  * Cells are {@value #CELL_SIZE} pixels square here, so a point {@code (x, y)} lands in row
  * {@code y / CELL_SIZE} and column {@code x / CELL_SIZE}.
+ * <p>
+ * The shadow tests paint the canvas into an image off screen over opaque white tiles. A cell of that image
+ * shows a shadow wherever any of its pixels differs from white.
  *
  * @author Claude Code
  * @version 2.0.0
  *          <p>
- *          Last modified: 2026-09-10
+ *          Last modified: 2026-09-14
  * @since 1.0.0
  */
 class LevelCanvasTest {
@@ -166,16 +170,31 @@ class LevelCanvasTest {
         canvas.setArmedTile(tile);
         stampAt(4 * CELL_SIZE, 4 * CELL_SIZE);
 
-        canvas.setArmedMetadata(new TileData(true));
+        canvas.setArmedMetadata(new TileData(true, false));
         stampAt(4 * CELL_SIZE, 4 * CELL_SIZE);
 
         assertTrue(canvas.getLayer(0).readMetadata(4, 4).isTraversable());
     }
 
     @Test
+    @DisplayName("A second metadata stamp on one tile keeps the flag that the first stamp set")
+    void testStampHoveredCell_withTwoMetadataStampsOnOneTile_KeepsBothFlags() {
+        canvas.setArmedTile(tile);
+        stampAt(4 * CELL_SIZE, 4 * CELL_SIZE);
+
+        canvas.setArmedMetadata(new TileData(true, false));
+        stampAt(4 * CELL_SIZE, 4 * CELL_SIZE);
+
+        canvas.setArmedMetadata(new TileData(false, true));
+        stampAt(4 * CELL_SIZE, 4 * CELL_SIZE);
+
+        assertEquals(new TileData(true, true), canvas.getLayer(0).readMetadata(4, 4));
+    }
+
+    @Test
     @DisplayName("A stamp of armed metadata over a free cell leaves that cell free")
     void testStampHoveredCell_withArmedMetadataOverAFreeCell_LeavesThatCellFree() {
-        canvas.setArmedMetadata(new TileData(true));
+        canvas.setArmedMetadata(new TileData(true, false));
 
         stampAt(4 * CELL_SIZE, 4 * CELL_SIZE);
 
@@ -294,9 +313,78 @@ class LevelCanvasTest {
         );
     }
 
+    @ParameterizedTest
+    @CsvSource({"true, true", "false, false"})
+    @DisplayName("A shadow paints over the tile below it on the same layer, which the grid paints after it")
+    void testPaintComponent_withTileBelowOnTheSameLayer_DarkensThatTileWhereTheFlagIsSet(boolean hasShadow, boolean expectDarkened) {
+        var layer = canvas.getLayer(0);
+        layer.placeTile(4, 4, buildWhiteTile());
+        layer.placeMetadata(4, 4, new TileData(false, hasShadow));
+        layer.placeTile(5, 4, buildWhiteTile());
+
+        var painted = paintCanvas();
+
+        assertEquals(expectDarkened, countPixelsOtherThanWhite(painted, 5, 4) > 0);
+    }
+
+    @Test
+    @DisplayName("A tile on a higher layer covers the shadow on the layer below it")
+    void testPaintComponent_withTileOnTheLayerAboveAShadow_CoversTheShadow() {
+        canvas.getLayer(0).placeTile(4, 4, buildWhiteTile());
+        canvas.getLayer(0).placeMetadata(4, 4, new TileData(false, true));
+        canvas.getLayer(1).placeTile(4, 4, buildWhiteTile());
+
+        var painted = paintCanvas();
+
+        assertEquals(0, countPixelsOtherThanWhite(painted, 4, 4));
+    }
+
     // ========================================================================================== \\
     //                                       Helper Methods                                       \\
     // ========================================================================================== \\
+    /**
+     * Paints the canvas at its preferred size into an image off screen, which is how a test reads what a user
+     * would see.
+     */
+    private BufferedImage paintCanvas() {
+        canvas.setSize(canvas.getPreferredSize());
+
+        var image    = new BufferedImage(canvas.getWidth(), canvas.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        var graphics = image.createGraphics();
+
+        canvas.printAll(graphics);
+        graphics.dispose();
+
+        return image;
+    }
+
+    /**
+     * Builds a tile from one opaque white pixel, which the canvas stretches over a whole cell.
+     */
+    private static TileSource buildWhiteTile() {
+        var image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        image.setRGB(0, 0, Color.WHITE.getRGB());
+
+        return new TileSource(image, TILESET, 0, 0);
+    }
+
+    /**
+     * Counts the pixels inside one cell of a painted canvas that are anything other than opaque white.
+     */
+    private static int countPixelsOtherThanWhite(BufferedImage painted, int row, int column) {
+        var count = 0;
+
+        // the grid line runs along the top and the left edge of every cell, so the count starts one pixel in
+        for (var y = row * CELL_SIZE + 1; y < (row + 1) * CELL_SIZE; y++) {
+            for (var x = column * CELL_SIZE + 1; x < (column + 1) * CELL_SIZE; x++) {
+                if (painted.getRGB(x, y) != Color.WHITE.getRGB()) {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
     /**
      * Moves the pointer to a point in component pixels and stamps there, which is the pair of steps that a user
      * performs with the pointer and the E key.

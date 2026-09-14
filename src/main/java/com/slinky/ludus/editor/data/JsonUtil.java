@@ -26,7 +26,7 @@ import java.util.TreeSet;
  * @author Kheagen Haskins
  * @version 1.0.0
  *         <p>
- *         Last modified: 2026-09-10
+ *         Last modified: 2026-09-14
  * @since 1.0.0
  */
 public class JsonUtil {
@@ -68,15 +68,15 @@ public class JsonUtil {
      *     {
      *       "tiles": [
      *         { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
-     *           "data": { "traversable": true } },
+     *           "data": { "traversable": true, "hasShadow": false } },
      *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
-     *           "data": { "traversable": true } }
+     *           "data": { "traversable": true, "hasShadow": true } }
      *       ]
      *     },
      *     {
      *       "tiles": [
      *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 5, "sourceColumn": 6,
-     *           "data": { "traversable": false } }
+     *           "data": { "traversable": false, "hasShadow": false } }
      *       ]
      *     },
      *     {
@@ -91,7 +91,8 @@ public class JsonUtil {
      * tileset's position in that array.
      * <p>
      * Each tile ends with a {@code data} object, which states the {@link TileData} of its cell as
-     * {@link TileGrid#readMetadata(int, int)} returns it.
+     * {@link TileGrid#readMetadata(int, int)} returns it. The object stores {@link TileData#isTraversable()} as
+     * the boolean {@code traversable}, and {@link TileData#hasShadow()} as the boolean {@code hasShadow}.
      * <p>
      * The {@code layers} array runs one entry per layer given, in the order that they paint, bottom first. A
      * layer with every cell free writes an entry whose {@code tiles} array is empty, as the third entry above
@@ -135,9 +136,9 @@ public class JsonUtil {
      * {
      *   "tiles": [
      *     { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
-     *       "data": { "traversable": true } },
+     *       "data": { "traversable": true, "hasShadow": false } },
      *     { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
-     *       "data": { "traversable": false } }
+     *       "data": { "traversable": false, "hasShadow": true } }
      *   ]
      * }
      * }</pre>
@@ -221,6 +222,7 @@ public class JsonUtil {
         var dataJson = new JsonObject();
 
         dataJson.addProperty("traversable", data.isTraversable());
+        dataJson.addProperty("hasShadow", data.hasShadow());
 
         return dataJson;
     }

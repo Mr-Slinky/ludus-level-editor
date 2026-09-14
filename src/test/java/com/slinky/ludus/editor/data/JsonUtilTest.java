@@ -10,6 +10,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import java.awt.image.BufferedImage;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -32,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @author Claude Code
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-08
+ *          Last modified: 2026-09-14
  * @since 1.0.0
  */
 class JsonUtilTest {
@@ -204,6 +205,24 @@ class JsonUtilTest {
                 () -> assertEquals(0, tile.get("tileset").getAsInt()),
                 () -> assertEquals(5, tile.get("sourceRow").getAsInt()),
                 () -> assertEquals(6, tile.get("sourceColumn").getAsInt())
+        );
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false, false", "true, false", "false, true", "true, true"})
+    @DisplayName("A tile's data object states each flag of the metadata stored in its cell")
+    void testToJson_withMetadataInTheCell_ReturnsEachFlagInTheDataObject(boolean traversable, boolean hasShadow) {
+        var layers = buildLayers(10, 10);
+        layers.get(0).placeTile(2, 3, buildTile(FIRST, 0, 0));
+        layers.get(0).placeMetadata(2, 3, new TileData(traversable, hasShadow));
+
+        var tile = readTiles(JsonUtil.toJson(10, 10, layers).getAsJsonArray("layers"), 0).get(0).getAsJsonObject();
+        var data = tile.getAsJsonObject("data");
+
+        assertAll(
+                () -> assertEquals(Set.of("traversable", "hasShadow"), data.keySet()),
+                () -> assertEquals(traversable, data.get("traversable").getAsBoolean()),
+                () -> assertEquals(hasShadow, data.get("hasShadow").getAsBoolean())
         );
     }
 

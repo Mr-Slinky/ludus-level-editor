@@ -30,17 +30,17 @@ import javax.swing.SwingConstants;
  * <pre>{@code
  * var view = new MetadataView();
  *
- * view.showMetadata(new Point(4, 2), new TileData(true));
- * // the caption shows "Row 2, column 4", and the Traversable row shows "Yes"
+ * view.showMetadata(new Point(4, 2), new TileData(true, false));
+ * // the caption shows "Row 2, column 4", the Traversable row shows "Yes", and the Shadow row shows "No"
  *
  * view.showEmptyCell(new Point(4, 2));
- * // the caption shows "Row 2, column 4, no tile", and the Traversable row shows "-"
+ * // the caption shows "Row 2, column 4, no tile", and both rows show "-"
  * }</pre>
  *
  * @author Kheagen Haskins
  * @version 1.0.0
  *         <p>
- *         Last modified: 2026-09-10
+ *         Last modified: 2026-09-14
  * @since 1.0.0
  */
 public class MetadataView extends JPanel {
@@ -67,6 +67,7 @@ public class MetadataView extends JPanel {
     // ========================================================================================== \\
     private final JLabel caption     = new JLabel("", SwingConstants.LEFT);
     private final JLabel traversable = new JLabel(BLANK, SwingConstants.RIGHT);
+    private final JLabel shadow      = new JLabel(BLANK, SwingConstants.RIGHT);
 
     // ========================================================================================== \\
     //                                       Constructor(s)                                       \\
@@ -81,6 +82,7 @@ public class MetadataView extends JPanel {
         rows.setOpaque(false);
         rows.setBorder(BorderFactory.createEmptyBorder(ROW_GAP, 0, 0, 0));
         addRow(rows, "Traversable", traversable);
+        addRow(rows, "Shadow", shadow);
 
         setLayout(new BorderLayout());
         setBackground(GROUND);
@@ -133,6 +135,7 @@ public class MetadataView extends JPanel {
 
         caption.setText(describeCell(cell));
         traversable.setText(describeFlag(data.isTraversable()));
+        shadow.setText(describeFlag(data.hasShadow()));
     }
 
     // ========================================================================================== \\
@@ -159,6 +162,7 @@ public class MetadataView extends JPanel {
 
     private void clearValues() {
         traversable.setText(BLANK);
+        shadow.setText(BLANK);
     }
 
     private String describeCell(Point cell) {

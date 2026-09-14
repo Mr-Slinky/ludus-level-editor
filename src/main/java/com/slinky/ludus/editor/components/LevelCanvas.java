@@ -16,6 +16,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -39,6 +40,11 @@ import javax.swing.SwingUtilities;
  * over the ground behind it. Every layer stays visible while a user edits, so a level appears exactly as it
  * will appear once it is finished.
  * <p>
+ * A tile whose metadata sets {@link TileData#hasShadow()} draws the image read from {@value #SHADOW_ASSET}
+ * centred on its cell, and that image overhangs the cell on every side. Each layer draws its shadows after all
+ * of its tiles. Therefore, a shadow falls across the neighbouring tiles of its own layer, and the tiles of every
+ * higher layer draw over it.
+ * <p>
  * One layer at a time takes a stamp. {@link #setActiveLayer(int)} chooses it, {@link #getActiveLayer()} reports
  * it, and {@link #getGrid()} returns its tiles. A press writes to that layer alone and leaves the rest as they
  * stand.
@@ -61,9 +67,10 @@ import javax.swing.SwingUtilities;
  * reduced opacity inside an outline, so a user sees where the next stamp will land before making it.
  * <p>
  * A caller arms {@link TileData} through {@link #setArmedMetadata(TileData)} in the same way, and a stamp then
- * writes that metadata into the cell under the pointer wherever the active layer stores a tile there. While
- * metadata is armed, the cell under the pointer shows the outline alone. One stamp is armed at a time, so
- * arming a tile disarms the metadata, and arming metadata disarms the tile.
+ * sets each flag of that metadata on the tile under the pointer, wherever the active layer stores a tile there.
+ * The tile keeps every flag that an earlier stamp set, so a stamp that marks a shadow leaves a traversable tile
+ * traversable. While metadata is armed, the cell under the pointer shows the outline alone. One stamp is armed
+ * at a time, so arming a tile disarms the metadata, and arming metadata disarms the tile.
  * <p>
  * A press of the right button frees the cell under the pointer on the active layer, removing its tile and its
  * metadata together, and selects that cell as any other press does. Whatever is armed stays armed through it,
@@ -111,7 +118,7 @@ import javax.swing.SwingUtilities;
  *     canvas.setArmedTile(grass);
  *     // with the pointer at (300, 140), a press of E writes the tile into row 2, column 4 of layer 0
  *
- *     canvas.setArmedMetadata(new TileData(true));
+ *     canvas.setArmedMetadata(new TileData(true, false));
  *     // a second press of E writes the metadata into that same cell
  *
  *     // a press of the pointer there selects the cell
@@ -124,7 +131,7 @@ import javax.swing.SwingUtilities;
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-10
+ *          Last modified: 2026-09-14
  * @since 1.0.0
  */
 public class LevelCanvas extends JPanel {
@@ -134,6 +141,9 @@ public class LevelCanvas extends JPanel {
     // ========================================================================================== \\
     /** The asset that the water colour is read from, below {@value Swatch#ROOT_DIR}. */
     public static final String WATER_ASSET = "terrain/tilesets/water-background-color.png";
+
+    /** The asset that the shadow image is read from, below {@value Swatch#ROOT_DIR}. */
+    public static final String SHADOW_ASSET = "terrain/tilesets/shadow.png";
 
     /** The number of grids a canvas stacks, indexed 0 at the bottom to {@code MAX_LAYERS - 1} at the top. */
     public static final int MAX_LAYERS = 6;
@@ -145,6 +155,12 @@ public class LevelCanvas extends JPanel {
     private static final Color SELECTION_OUTLINE = Palette.getActive().getAccent1();
 
     private static final float HOVER_ALPHA = 0.45f;
+
+    /**
+     * The cell size that the shadow image is drawn against. The image is three of these cells square, so its
+     * central cell covers the shadowed cell and the rest overhangs the cells around it.
+     */
+    private static final int SHADOW_CELL_SIZE = 64;
 
     /** The width in pixels of the outline round the selected cell, drawn inside the cell. */
     private static final int SELECTION_STROKE = 2;
@@ -168,6 +184,7 @@ public class LevelCanvas extends JPanel {
     private final List<TileGrid> layers = new ArrayList<>();
     private final List<SelectionListener> listeners = new ArrayList<>();
     private final Color waterColour = readWaterColour();
+    private final BufferedImage shadow = Swatch.loadImage(SHADOW_ASSET);
     private final int cellWidth;
     private final int cellHeight;
     private final int maxRows;
@@ -345,8 +362,8 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Arms metadata and disarms any tile. Every later stamp writes the metadata into the cell under the pointer,
-     * wherever the active layer stores a tile in that cell, until a caller arms something else.
+     * Arms metadata and disarms any tile. Every later stamp sets each flag of the metadata on the tile under the
+     * pointer, wherever the active layer stores a tile in that cell, until a caller arms something else.
      *
      * @param data the metadata to stamp
      * @throws IllegalArgumentException if the data is null
@@ -382,7 +399,8 @@ public class LevelCanvas extends JPanel {
      * Stamps whatever is armed into the cell under the pointer, which is the cell that the ghost outlines. The
      * E key runs this while the window holding this canvas has the keyboard focus.
      * <p>
-     * A stamp writes the armed tile into that cell, or writes the armed metadata onto the tile already there.
+     * A stamp writes the armed tile into that cell, or sets each flag of the armed metadata on the tile already
+     * there.
      * Every layer stays as it stands where nothing is armed, where the pointer rests away from the grid, and
      * where armed metadata meets a free cell.
      */
@@ -592,15 +610,16 @@ public class LevelCanvas extends JPanel {
     }
 
     /**
-     * Writes the armed metadata into a cell of the active layer that stores a tile, and leaves a free cell as it
-     * stands.
+     * Combines the armed metadata with the metadata of a cell of the active layer that stores a tile, and leaves
+     * a free cell as it stands.
      */
     private void stampMetadataAt(Point cell) {
         var grid = readActiveGrid();
 
         // a written level includes the metadata of occupied cells alone
         if (grid.readTile(cell.y, cell.x).isPresent()) {
-            grid.placeMetadata(cell.y, cell.x, armedMetadata);
+            var combined = grid.readMetadata(cell.y, cell.x).combine(armedMetadata);
+            grid.placeMetadata(cell.y, cell.x, combined);
         }
     }
 
@@ -680,6 +699,11 @@ public class LevelCanvas extends JPanel {
         }
     }
 
+    /**
+     * Draws every tile of one layer, then the shadow of each tile on that layer whose metadata sets
+     * {@link TileData#hasShadow()}. A shadow overhangs its cell, so the tiles go down in full first, which keeps a
+     * tile drawn later in the pass from covering the overhang of a shadow beside it.
+     */
     private void paintLayer(Graphics2D canvas, TileGrid layer) {
         for (var row = 0; row < layer.getRows(); row++) {
             for (var column = 0; column < layer.getColumns(); column++) {
@@ -690,6 +714,25 @@ public class LevelCanvas extends JPanel {
                      .ifPresent(tile -> canvas.drawImage(tile.image(), x, y, cellWidth, cellHeight, null));
             }
         }
+
+        for (var tile : layer.readPlacedTiles()) {
+            if (tile.data().hasShadow()) {
+                paintShadow(canvas, tile.row(), tile.column());
+            }
+        }
+    }
+
+    /**
+     * Draws the shadow image centred on one cell. The image scales by the cell size over
+     * {@value #SHADOW_CELL_SIZE}, which lays its central cell over this one and the rest over the cells around it.
+     */
+    private void paintShadow(Graphics2D canvas, int row, int column) {
+        var width  = shadow.getWidth()  * cellWidth  / SHADOW_CELL_SIZE;
+        var height = shadow.getHeight() * cellHeight / SHADOW_CELL_SIZE;
+        var left   = column * cellWidth  - (width  - cellWidth)  / 2;
+        var top    = row    * cellHeight - (height - cellHeight) / 2;
+
+        canvas.drawImage(shadow, left, top, width, height, null);
     }
 
     private void paintGrid(Graphics2D canvas) {

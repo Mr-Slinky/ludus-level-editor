@@ -33,7 +33,7 @@ import java.util.Optional;
  *     var grass   = new TileSource(art, tileset, 1, 1);
  *
  *     grid.placeTile(8, 3, grass);
- *     grid.placeMetadata(8, 3, new TileData(true));
+ *     grid.placeMetadata(8, 3, new TileData(true, false));
  *
  *     grid.getPlacedCount();                    // 1
  *     grid.readTile(8, 3).isPresent();          // true
@@ -54,7 +54,7 @@ import java.util.Optional;
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-10
+ *          Last modified: 2026-09-14
  * @since 1.0.0
  */
 public class TileGrid {

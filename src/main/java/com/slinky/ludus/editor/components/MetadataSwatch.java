@@ -37,7 +37,7 @@ import javax.swing.ToolTipManager;
  * @author Kheagen Haskins
  * @version 1.0.0
  *         <p>
- *         Last modified: 2026-09-10
+ *         Last modified: 2026-09-14
  * @since 1.0.0
  */
 public class MetadataSwatch extends Swatch {
@@ -153,7 +153,10 @@ public class MetadataSwatch extends Swatch {
     public enum Stamp {
 
         /** Marks a tile as one that a player can walk over. */
-        TRAVERSABLE("TR", "Traversable: a player can walk over this tile", new TileData(true));
+        TRAVERSABLE("TR", "Traversable: a player can walk over this tile", new TileData(true, false)),
+
+        /** Marks a tile as one that the game draws a shadow over. */
+        SHADOW("SH", "Shadow: the game draws a shadow over this tile", new TileData(false, true));
 
         private final String   code;
         private final String   description;
