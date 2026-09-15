@@ -21,14 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Pins the whole path from a press to a level file, over the five real terrain tilesets.
  * <p>
- * Each test presses on a swatch to select a tile, arms the canvas with what the deck reports, and presses on
- * the canvas to stamp it, which is the sequence that {@code RootPanel} wires up. It then converts the canvas
+ * Each test presses on a swatch to select a tile, arms the canvas with what the deck reports, then moves the
+ * pointer over a cell and stamps, which is the sequence that {@code RootPanel} wires up. It then converts the canvas
  * through {@link LevelWriter#buildLevelJson(LevelCanvas)} and reads the JSON back.
  * <p>
  * The test that matters most here is
  * {@link #testBuildLevelJson_withTwoOfFiveTilesetsPainted_ReturnsThoseTwoAlone()}. A deck loads five tilesets,
- * a user paints from two, and the file lists those two. An earlier version of this editor wrote all five and
- * indexed the tiles against the deck, so a level referred to art that it never drew.
+ * a user paints from two, and the file lists those two, with each tile's index resolving against that list.
  *
  * @author Claude Code
  * @version 1.0.0
@@ -163,14 +162,15 @@ class LevelWriterTest {
     // ========================================================================================== \\
     /**
      * Performs one whole editing gesture: flip the deck to a tileset, press the tile at the given source cell,
-     * arm the canvas with what the deck reports, and press the cell of the given layer that takes the stamp.
+     * arm the canvas with what the deck reports, rest the pointer over the cell of the given layer that takes
+     * the stamp, and stamp it.
      *
      * @param tileset      the position in the deck to flip to
      * @param sourceRow    the row of that tileset to press
      * @param sourceColumn the column of that tileset to press
      * @param layer        the canvas layer that takes the stamp
-     * @param row          the canvas row to press
-     * @param column       the canvas column to press
+     * @param row          the canvas row to stamp
+     * @param column       the canvas column to stamp
      */
     private void stamp(int tileset, int sourceRow, int sourceColumn, int layer, int row, int column) {
         deck.showSwatch(tileset);
@@ -178,12 +178,19 @@ class LevelWriterTest {
 
         canvas.setArmedTile(deck.readSelectedTile().orElseThrow());
         canvas.setActiveLayer(layer);
-        press(canvas, column * CELL_SIZE, row * CELL_SIZE);
+        moveOver(canvas, column * CELL_SIZE, row * CELL_SIZE);
+        canvas.stampHoveredCell();
     }
 
     private static void press(Component target, int x, int y) {
         target.dispatchEvent(new MouseEvent(
                 target, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(), 0, x, y, 1, false
+        ));
+    }
+
+    private static void moveOver(Component target, int x, int y) {
+        target.dispatchEvent(new MouseEvent(
+                target, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, x, y, 0, false
         ));
     }
 

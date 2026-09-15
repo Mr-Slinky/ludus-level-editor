@@ -23,13 +23,17 @@ import javax.swing.JPanel;
 
 /**
  * Takes a single image and turns it into a swatch of selectable tiles, drawn at the image's natural size. The
- * tile width and height determine how many rows and columns this swatch has. An image of dimensions 192x64,
- * cut into 64 pixel tiles, yields one row (64 image height / 64 tile height = 1 row) and three columns
- * (192 image width / 64 tile width = 3 columns).
+ * tile width and height determine how many rows and columns this swatch has. An image 192 pixels wide and 64
+ * tall, cut into 64 pixel tiles, yields one row and three columns.
  * <p>
- * A press selects the one tile under the pointer. {@link #getSelection()} returns that tile in tile
- * coordinates, where {@code x} is the column and {@code y} is the row. A new swatch starts with an empty
+ * A press selects the one tile under the pointer, and a second press on that same tile clears the selection,
+ * so one gesture both picks a tile up and puts it back. {@link #getSelection()} returns the selected tile in
+ * tile coordinates, where {@code x} is the column and {@code y} is the row. A new swatch starts with an empty
  * selection, and {@link #clearSelection()} returns it to that state.
+ * <p>
+ * Every press reports to each {@link SelectionListener} registered through
+ * {@link #addSelectionListener(SelectionListener)}, whether that press selected a tile or cleared one, and a
+ * listener reads which of the two happened through {@link #getSelection()}.
  * <p>
  * <b>Keeping one selection across several swatches</b>
  * <p>
@@ -39,8 +43,8 @@ import javax.swing.JPanel;
  * var terrain = new Swatch(terrainPath, 64);
  * var water   = new Swatch(waterPath, 64);
  *
- * terrain.addSelectionListener(selection -> water.clearSelection());
- * water.addSelectionListener(selection -> terrain.clearSelection());
+ * terrain.addSelectionListener(() -> water.clearSelection());
+ * water.addSelectionListener(() -> terrain.clearSelection());
  *
  * // a press on the first tile of the second row of the terrain swatch leaves
  * // terrain.getSelection() equal to Optional[java.awt.Point[x=0,y=1]]
@@ -89,6 +93,10 @@ public class Swatch extends JPanel {
      *
      * @param imagePath the path below {@value #ROOT_DIR}, with or without a leading slash
      * @param dimension the tile width and height in pixels
+     * @throws IllegalArgumentException if the classpath contains no resource at that path, if the resource
+     *                                  decodes to no image, if the dimension is zero or negative, or if the
+     *                                  image is smaller than a single tile
+     * @throws UncheckedIOException     if reading the resource fails
      */
     public Swatch(String imagePath, int dimension) {
         this(imagePath, dimension, dimension);
@@ -100,6 +108,10 @@ public class Swatch extends JPanel {
      * @param imagePath  the path below {@value #ROOT_DIR}, with or without a leading slash
      * @param tileWidth  the tile width in pixels
      * @param tileHeight the tile height in pixels
+     * @throws IllegalArgumentException if the classpath contains no resource at that path, if the resource
+     *                                  decodes to no image, if either tile dimension is zero or negative, or
+     *                                  if the image is smaller than a single tile
+     * @throws UncheckedIOException     if reading the resource fails
      */
     public Swatch(String imagePath, int tileWidth, int tileHeight) {
         this(loadImage(imagePath), resolveResourcePath(imagePath), tileWidth, tileHeight);
@@ -110,6 +122,8 @@ public class Swatch extends JPanel {
      *
      * @param image     the image to draw and divide
      * @param dimension the tile width and height in pixels
+     * @throws IllegalArgumentException if the image is null, if the dimension is zero or negative, or if the
+     *                                  image is smaller than a single tile
      */
     public Swatch(BufferedImage image, int dimension) {
         this(image, dimension, dimension);
@@ -151,10 +165,12 @@ public class Swatch extends JPanel {
 
         var size = new Dimension(image.getWidth(), image.getHeight());
 
-        // the minimum matters as much as the preferred size: a layout short of room reads the minimum, and a
-        // swatch without one shrinks away to nothing rather than being clipped
-        // a tileset's transparent cells show this through, so the swatch keeps an edge against the panel
+        // a tileset's transparent cells show the background through, so the swatch keeps an edge against the
+        // panel behind it
         setBackground(BACKGROUND);
+
+        // the minimum matters as much as the preferred size: a layout short of room reads the minimum, and a
+        // swatch that states none shrinks away to nothing instead of being clipped
         setPreferredSize(size);
         setMinimumSize(size);
         installMouseHandling();
@@ -212,7 +228,7 @@ public class Swatch extends JPanel {
     //                                        API Methods                                         \\
     // ========================================================================================== \\
     /**
-     * Registers a listener that receives the selection every time it changes.
+     * Registers a listener that runs every time a press changes the selection, in either direction.
      *
      * @param listener the listener to notify
      */
@@ -221,7 +237,7 @@ public class Swatch extends JPanel {
     }
 
     /**
-     * Returns the region of the source image the selected tile covers, at the image's own resolution. A swatch
+     * Returns the region of the source image that the selected tile covers, at the image's own resolution. A swatch
      * of 64 pixel tiles returns a 64 by 64 image.
      *
      * @return a view onto the source image, sharing its pixels, and empty while nothing is selected
@@ -325,20 +341,20 @@ public class Swatch extends JPanel {
         return Math.max(0, Math.min(value, maximum));
     }
 
+    /**
+     * Selects the given tile, and clears the selection where that tile is the one already selected, which is
+     * how a user puts a tile back with the same gesture that picked it up.
+     */
     private void updateSelection(Point tile) {
-        if (tile.equals(selection)) {
-            return;
-        }
+        selection = tile.equals(selection) ? null : tile;
 
-        selection = tile;
         repaint();
         fireSelectionChanged();
     }
 
     private void fireSelectionChanged() {
-        var current = new Point(selection);
         for (var listener : listeners) {
-            listener.handleSelection(current);
+            listener.handleSelectionChange();
         }
     }
 
@@ -401,17 +417,16 @@ public class Swatch extends JPanel {
     //                                       Helper Classes                                       \\
     // ========================================================================================== \\
     /**
-     * Receives the tile that a {@link Swatch} selects, so a component beside the swatch can follow the selection.
+     * Receives every change to a {@link Swatch}'s selection, so a component beside the swatch can follow it.
      */
     @FunctionalInterface
     public interface SelectionListener {
 
         /**
-         * Accepts the tile now selected.
-         *
-         * @param selection the selected tile in tile coordinates, with {@code x} the column and {@code y} the row
+         * Handles a press that selected a tile or cleared the selection, which a listener tells apart by
+         * calling {@link Swatch#getSelection()}.
          */
-        void handleSelection(Point selection);
+        void handleSelectionChange();
     }
 
 }

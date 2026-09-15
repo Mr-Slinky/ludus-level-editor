@@ -1,10 +1,10 @@
 package com.slinky.ludus.editor.panels;
 
-import com.slinky.ludus.editor.components.ChevronButton;
 import com.slinky.ludus.editor.components.Swatch;
 import com.slinky.ludus.editor.data.Palette;
 import com.slinky.ludus.editor.data.TileSource;
 import com.slinky.ludus.editor.data.TileSet;
+import com.slinky.ludus.ui.SmallButton;
 
 import java.awt.Color;
 import java.awt.BorderLayout;
@@ -23,13 +23,14 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
 /**
- * Stacks several {@link Swatch} instances into a deck and shows one at a time, with a back and a forward button
- * either side of a caption stating the name of the visible tileset. Calling {@link #showNext()} on the last
+ * Stacks several {@link Swatch} instances into a deck and shows one at a time, with a back arrow and a forward
+ * arrow either side of a caption stating the name of the visible tileset. Calling {@link #showNext()} on the last
  * swatch shows the first, and calling {@link #showPrevious()} on the first shows the last.
  * <p>
  * One tile stays selected across the whole deck. A press on the visible swatch clears the selection on every
  * other swatch, so {@link #getSelection()} answers for the whole deck, and a selection made on one tileset
- * survives flipping away and back.
+ * survives flipping away and back. A second press on the selected tile clears it, which leaves the deck with
+ * no tile selected anywhere in it.
  * <p>
  * {@link #readSelectedTile()} returns that selection as a {@link TileSource}, together with the {@link TileSet}
  * that the swatch it was selected on loaded its image from. A tile therefore identifies its own tileset by path,
@@ -56,7 +57,7 @@ import javax.swing.SwingConstants;
  * @author Kheagen Haskins
  * @version 1.0.0
  *          <p>
- *          Last modified: 2026-09-08
+ *          Last modified: 2026-09-12
  * @since 1.0.0
  */
 public class SwatchPanel extends JPanel {
@@ -65,6 +66,9 @@ public class SwatchPanel extends JPanel {
     //                                           Static                                           \\
     // ========================================================================================== \\
     private static final Color GROUND = Palette.getActive().getDark();
+
+    private static final double POINT_LEFT  = 0;
+    private static final double POINT_RIGHT = Math.PI;
 
     // ========================================================================================== \\
     //                                           Fields                                           \\
@@ -176,7 +180,7 @@ public class SwatchPanel extends JPanel {
     }
 
     /**
-     * Returns the region of the source image the selection covers, at that image's own resolution.
+     * Returns the region of the source image that the selection covers, at that image's own resolution.
      *
      * @return the selected pixels, and empty while no swatch in the deck has a selection
      */
@@ -218,7 +222,7 @@ public class SwatchPanel extends JPanel {
     }
 
     /**
-     * Registers a listener that receives the selected tile every time a press changes it.
+     * Registers a listener that runs every time a press changes the deck's selection, in either direction.
      *
      * @param listener the listener to notify
      */
@@ -230,7 +234,7 @@ public class SwatchPanel extends JPanel {
     //                                       Helper Methods                                       \\
     // ========================================================================================== \\
     private void addSwatch(Swatch swatch, String name) {
-        swatch.addSelectionListener(selection -> handleSwatchSelection(swatch, selection));
+        swatch.addSelectionListener(() -> handleSwatchSelection(swatch));
 
         swatches.add(swatch);
         names.add(name);
@@ -239,9 +243,9 @@ public class SwatchPanel extends JPanel {
 
     /**
      * Clears every swatch other than the one just pressed, so one tile stays selected across the deck, then
-     * passes the selection on. Each clear stays silent, so none of them re-enters this method.
+     * passes the change on. Each clear stays silent, so none of them re-enters this method.
      */
-    private void handleSwatchSelection(Swatch source, Point selection) {
+    private void handleSwatchSelection(Swatch source) {
         for (var swatch : swatches) {
             if (swatch != source) {
                 swatch.clearSelection();
@@ -249,13 +253,13 @@ public class SwatchPanel extends JPanel {
         }
 
         for (var listener : listeners) {
-            listener.handleSelection(selection);
+            listener.handleSelectionChange();
         }
     }
 
     private JPanel buildNavigationBar() {
-        var previous = new ChevronButton(ChevronButton.Direction.LEFT);
-        var next     = new ChevronButton(ChevronButton.Direction.RIGHT);
+        var previous = SmallButton.blueRound(SmallButton.Symbol.LEFT_ARROW, POINT_LEFT);
+        var next     = SmallButton.blueRound(SmallButton.Symbol.LEFT_ARROW, POINT_RIGHT);
 
         previous.addActionListener(_ -> showPrevious());
         next.addActionListener(_ -> showNext());

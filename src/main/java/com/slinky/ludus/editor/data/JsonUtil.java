@@ -8,10 +8,25 @@ import java.util.List;
 import java.util.TreeSet;
 
 /**
+ * Converts the layers of a level to the JSON that Ludus loads.
+ * <p>
+ * {@link #toJson(int, int, Collection)} builds a whole level as one {@link JsonObject} and states the format in
+ * full. {@link #writePrettyString(JsonElement)} turns that object into the text of a level file.
+ * <p>
+ * <b>Writing a level out</b>
+ * <p>
+ * A caller converts every layer of a canvas at once, then asks for the text:
+ * <pre>{@code
+ * var level = JsonUtil.toJson(10, 10, layers);
+ * var text  = JsonUtil.writePrettyString(level);
  *
+ * // text states 10 rows, 10 columns, the tilesets that those layers draw from, and one entry per layer
+ * }</pre>
  *
  * @author Kheagen Haskins
  * @version 1.0.0
+ *         <p>
+ *         Last modified: 2026-09-14
  * @since 1.0.0
  */
 public class JsonUtil {
@@ -27,14 +42,20 @@ public class JsonUtil {
     // ========================================================================================== \\
     //                                        API Methods                                         \\
     // ========================================================================================== \\
+    /**
+     * Converts a JSON object to the text of a level file, indented and with every null written out.
+     *
+     * @param json the level to write, as {@link #toJson(int, int, Collection)} returns it
+     * @return that level as pretty printed JSON
+     */
     public static String writePrettyString(JsonElement json) {
         return PRINTER.toJson(json);
     }
 
     /**
-     * Writes:
+     * Builds a whole level, which takes this form:
      * <pre>{@code
-     *  {
+     * {
      *   "rows": 10,
      *   "columns": 10,
      *   "tilesets": [
@@ -46,13 +67,16 @@ public class JsonUtil {
      *   "layers": [
      *     {
      *       "tiles": [
-     *         { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 },
-     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 }
+     *         { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
+     *           "data": { "traversable": true, "hasShadow": false } },
+     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
+     *           "data": { "traversable": true, "hasShadow": true } }
      *       ]
      *     },
      *     {
      *       "tiles": [
-     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 5, "sourceColumn": 6 }
+     *         { "row": 8, "column": 4, "tileset": 0, "sourceRow": 5, "sourceColumn": 6,
+     *           "data": { "traversable": false, "hasShadow": false } }
      *       ]
      *     },
      *     {
@@ -60,11 +84,15 @@ public class JsonUtil {
      *     }
      *   ]
      * }
-     *  </pre>
+     * }</pre>
      * <p>
      * The {@code tilesets} array is collected from the tiles that the layers place, so it lists exactly the
      * tilesets that the level draws from, ordered by path. Each tile's {@code tileset} property is its
      * tileset's position in that array.
+     * <p>
+     * Each tile ends with a {@code data} object, which states the {@link TileData} of its cell as
+     * {@link TileGrid#readMetadata(int, int)} returns it. The object stores {@link TileData#isTraversable()} as
+     * the boolean {@code traversable}, and {@link TileData#hasShadow()} as the boolean {@code hasShadow}.
      * <p>
      * The {@code layers} array runs one entry per layer given, in the order that they paint, bottom first. A
      * layer with every cell free writes an entry whose {@code tiles} array is empty, as the third entry above
@@ -103,16 +131,17 @@ public class JsonUtil {
     }
 
     /**
-     * Writes:
+     * Builds one layer, which takes this form:
      * <pre>{@code
-     *  {
-     *      "tiles": [
-     *          { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 },
-     *          { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1 }
-     *      ]
-     *  }
-     *  }
-     *  </pre>
+     * {
+     *   "tiles": [
+     *     { "row": 8, "column": 3, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
+     *       "data": { "traversable": true, "hasShadow": false } },
+     *     { "row": 8, "column": 4, "tileset": 0, "sourceRow": 1, "sourceColumn": 1,
+     *       "data": { "traversable": false, "hasShadow": true } }
+     *   ]
+     * }
+     * }</pre>
      *
      * @param tiles    the layer to write
      * @param tilesets the tilesets of the level, in the order that the file lists them
@@ -141,7 +170,7 @@ public class JsonUtil {
      */
     private static List<TileSet> collectTileSets(Collection<TileGrid> layers) {
         // the comparator decides equality as well as order here, so it reads both components of a TileSet
-        var found = new TreeSet<TileSet>(Comparator.comparing(TileSet::path).thenComparingInt(TileSet::cellSize));
+        var found = new TreeSet<>(Comparator.comparing(TileSet::path).thenComparingInt(TileSet::cellSize));
 
         for (var layer : layers) {
             for (var tile : layer.readPlacedTiles()) {
@@ -171,7 +200,10 @@ public class JsonUtil {
         var index = tilesets.indexOf(tile.tileset());
 
         if (index < 0) {
-            throw new IllegalArgumentException(String.format("The given tilesets contain no entry for '%s', which the tile at row %d, column %d was cut from", tile.tileset().path(), tile.row(), tile.column()));
+            throw new IllegalArgumentException(
+                    "The given tilesets contain no entry for '%s', which the tile at row %d, column %d was cut from"
+                            .formatted(tile.tileset().path(), tile.row(), tile.column())
+            );
         }
 
         var tileJson = new JsonObject();
@@ -181,8 +213,18 @@ public class JsonUtil {
         tileJson.addProperty("tileset", index);
         tileJson.addProperty("sourceRow", tile.sourceRow());
         tileJson.addProperty("sourceColumn", tile.sourceColumn());
+        tileJson.add("data", toJson(tile.data()));
 
         return tileJson;
+    }
+
+    private static JsonObject toJson(TileData data) {
+        var dataJson = new JsonObject();
+
+        dataJson.addProperty("traversable", data.isTraversable());
+        dataJson.addProperty("hasShadow", data.hasShadow());
+
+        return dataJson;
     }
 
 }
